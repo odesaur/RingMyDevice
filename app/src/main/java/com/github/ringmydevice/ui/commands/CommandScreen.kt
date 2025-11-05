@@ -78,11 +78,16 @@ fun CommandScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun CommandCard(item: CommandItem) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val requestPermission = com.github.ringmydevice.permissions.rememberPermissionRequester {
+        android.util.Log.d("RMD", "Permission result: $it")
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(item.icon, contentDescription = null)
                 Spacer(Modifier.width(12.dp))
@@ -105,8 +110,24 @@ private fun CommandCard(item: CommandItem) {
 
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = {}) { Text("Grant") }
+                OutlinedButton(onClick = {
+                    when {
+                        item.title.startsWith("bluetooth") -> {
+                            val p = com.github.ringmydevice.permissions.Permissions.requiredForBluetoothConnect()
+                            if (!com.github.ringmydevice.permissions.Permissions.has(ctx, p)) requestPermission(p)
+                        }
+                        item.title.startsWith("camera") -> {
+                            val p = com.github.ringmydevice.permissions.Permissions.requiredForCamera()
+                            if (!com.github.ringmydevice.permissions.Permissions.has(ctx, p)) requestPermission(p)
+                        }
+                        item.title.startsWith("delete") -> {
+                            // Special access: open settings screen (no ActivityResult needed)
+                            com.github.ringmydevice.permissions.DoNotDisturbAccessPermission.request(ctx)
+                        }
+                    }
+                }) { Text("Grant") }
             }
         }
     }
 }
+
