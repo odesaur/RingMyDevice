@@ -6,31 +6,31 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
-/* Material 3 color scheme mapped from Catppuccin Macchiato */
+/* Material 3 color scheme mapped from Rosé Pine (dark) */
 private val DarkColors: ColorScheme = darkColorScheme(
-    primary = CpBlue,
-    onPrimary = CpCrust,
-    primaryContainer = CpMauve,
-    onPrimaryContainer = CpCrust,
-    secondary = CpLavender,
-    onSecondary = CpCrust,
-    secondaryContainer = CpSurface1,
-    onSecondaryContainer = CpText,
-    tertiary = CpGreen,
-    onTertiary = CpCrust,
-    tertiaryContainer = CpSurface1,
-    onTertiaryContainer = CpText,
-    background = CpBase,
-    onBackground = CpText,
-    surface = CpSurface0,
-    onSurface = CpText,
-    surfaceVariant = CpSurface1,
-    onSurfaceVariant = CpSubtext0,
-    outline = CpOverlay1,
-    error = CpRed,
-    onError = CpCrust,
-    errorContainer = CpMaroon,
-    onErrorContainer = CpCrust
+    primary = RpLove,
+    onPrimary = RpBase,
+    primaryContainer = RpRose,
+    onPrimaryContainer = RpBase,
+    secondary = RpIris,
+    onSecondary = RpBase,
+    secondaryContainer = RpSurface1,
+    onSecondaryContainer = RpText,
+    tertiary = RpFoam,
+    onTertiary = RpBase,
+    tertiaryContainer = RpSurface1,
+    onTertiaryContainer = RpText,
+    background = RpBase,
+    onBackground = RpText,
+    surface = RpSurface0,
+    onSurface = RpText,
+    surfaceVariant = RpSurface1,
+    onSurfaceVariant = RpSubtext1,
+    outline = RpOverlay2,
+    error = RpLove,
+    onError = RpBase,
+    errorContainer = RpRose,
+    onErrorContainer = RpBase
 )
 
 @Composable
