@@ -16,14 +16,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.github.ringmydevice.permissions.*
 import com.github.ringmydevice.permissions.Permissions.openAppDetails
 import com.github.ringmydevice.ui.model.CommandItem
+import com.github.ringmydevice.maps.openInOpenStreetMap
+import com.github.ringmydevice.permissions.Permissions
+import com.github.ringmydevice.permissions.DoNotDisturbAccessPermission
+import androidx.lifecycle.viewmodel.compose.*
+import androidx.compose.ui.platform.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommandScreen(modifier: Modifier = Modifier) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    val vm = androidx.lifecycle.viewmodel.compose.viewModel<com.github.ringmydevice.viewmodel.CommandViewModel>()
+    val ctx = LocalContext.current
+    val vm = viewModel<com.github.ringmydevice.viewmodel.CommandViewModel>()
     var showLogs by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.refresh() }
@@ -71,7 +77,10 @@ fun CommandScreen(modifier: Modifier = Modifier) {
                             OutlinedButton(onClick = { vm.simulateRing(context = ctx, seconds = 5) }) {
                                 Text("Simulate RING 5s")
                             }
-                            OutlinedButton(onClick = { vm.simulateLocate() }) {
+                            OutlinedButton(onClick = {
+                                val (lat, lon) = vm.simulateLocate()
+                                openInOpenStreetMap(ctx, lat, lon)     // OSM in browser
+                            }) {
                                 Text("Simulate LOCATE")
                             }
                             OutlinedButton(onClick = { showLogs = true }) {
@@ -112,7 +121,7 @@ fun CommandScreen(modifier: Modifier = Modifier) {
 
         if (showLogs) {
             ModalBottomSheet(onDismissRequest = { showLogs = false }) {
-                com.github.ringmydevice.ui.commands.LogsSheet(vm) { showLogs = false }
+                LogsSheet(vm) { showLogs = false }
             }
         }
     }
@@ -121,8 +130,8 @@ fun CommandScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun CommandCard(item: CommandItem) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    val requestPermission = com.github.ringmydevice.permissions.rememberPermissionRequester {
+    val ctx = LocalContext.current
+    val requestPermission = rememberPermissionRequester {
         android.util.Log.d("RMD", "Permission result: $it")
     }
 
@@ -131,9 +140,9 @@ private fun CommandCard(item: CommandItem) {
         mutableStateOf(
             when {
                 item.title.startsWith("bluetooth") ->
-                    com.github.ringmydevice.permissions.Permissions.has(ctx, com.github.ringmydevice.permissions.Permissions.requiredForBluetoothConnect())
+                    Permissions.has(ctx, Permissions.requiredForBluetoothConnect())
                 item.title.startsWith("camera") ->
-                    com.github.ringmydevice.permissions.Permissions.has(ctx, com.github.ringmydevice.permissions.Permissions.requiredForCamera())
+                    Permissions.has(ctx, Permissions.requiredForCamera())
                 else -> false
             }
         )
@@ -171,28 +180,28 @@ private fun CommandCard(item: CommandItem) {
                 OutlinedButton(onClick = {
                     when {
                         item.title.startsWith("bluetooth") -> {
-                            val p = com.github.ringmydevice.permissions.Permissions.requiredForBluetoothConnect()
+                            val p = Permissions.requiredForBluetoothConnect()
                             if (permissionGranted.value) {
                                 // "Revoke" path — open app settings so user can revoke manually
                                 openAppDetails(ctx)
                             } else {
                                 requestPermission(p)
                             }
-                            permissionGranted.value = com.github.ringmydevice.permissions.Permissions.has(ctx, p)
+                            permissionGranted.value = Permissions.has(ctx, p)
                         }
 
                         item.title.startsWith("camera") -> {
-                            val p = com.github.ringmydevice.permissions.Permissions.requiredForCamera()
+                            val p = Permissions.requiredForCamera()
                             if (permissionGranted.value) {
                                 openAppDetails(ctx)
                             } else {
                                 requestPermission(p)
                             }
-                            permissionGranted.value = com.github.ringmydevice.permissions.Permissions.has(ctx, p)
+                            permissionGranted.value = Permissions.has(ctx, p)
                         }
 
                         item.title.startsWith("delete") -> {
-                            com.github.ringmydevice.permissions.DoNotDisturbAccessPermission.request(ctx)
+                            DoNotDisturbAccessPermission.request(ctx)
                         }
                     }
                 }) {

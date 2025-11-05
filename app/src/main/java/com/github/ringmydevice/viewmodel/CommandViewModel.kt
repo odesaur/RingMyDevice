@@ -31,18 +31,19 @@ class CommandViewModel(
         }
     }
 
-    fun simulateLocate() {
-        val fake = "49.2827, -123.1207 (Vancouver)"
+    fun simulateLocate(): Pair<Double, Double> {
+        val coords = 49.2827 to -123.1207 // demo: Vancouver
         viewModelScope.launch {
             repo.log(
                 CommandLog(
                     type = CommandType.LOCATE,
                     timestamp = System.currentTimeMillis(),
-                    notes = "Simulated locate -> $fake"
+                    notes = "Demo locate → ${coords.first}, ${coords.second}"
                 )
             )
             _logs.value = repo.latest()
         }
+        return coords
     }
 
     fun refresh() {
