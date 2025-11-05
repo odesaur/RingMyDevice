@@ -1,58 +1,47 @@
 package com.github.ringmydevice.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+/* Material 3 color scheme mapped from Catppuccin Macchiato */
+private val DarkColors: ColorScheme = darkColorScheme(
+    primary = CpBlue,
+    onPrimary = CpCrust,
+    primaryContainer = CpMauve,
+    onPrimaryContainer = CpCrust,
+    secondary = CpLavender,
+    onSecondary = CpCrust,
+    secondaryContainer = CpSurface1,
+    onSecondaryContainer = CpText,
+    tertiary = CpGreen,
+    onTertiary = CpCrust,
+    tertiaryContainer = CpSurface1,
+    onTertiaryContainer = CpText,
+    background = CpBase,
+    onBackground = CpText,
+    surface = CpSurface0,
+    onSurface = CpText,
+    surfaceVariant = CpSurface1,
+    onSurfaceVariant = CpSubtext0,
+    outline = CpOverlay1,
+    error = CpRed,
+    onError = CpCrust,
+    errorContainer = CpMaroon,
+    onErrorContainer = CpCrust
 )
 
 @Composable
-fun RingMyDeviceTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+fun RMDTheme(
+    useDarkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+    val scheme = DarkColors
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
+        colorScheme = scheme,
+        typography = RMDTypography,
         content = content
     )
 }
