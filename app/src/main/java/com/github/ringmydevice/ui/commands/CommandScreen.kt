@@ -1,83 +1,123 @@
 package com.github.ringmydevice.ui.commands
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.DeleteForever
-import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.github.ringmydevice.ui.model.CommandItem
 import com.github.ringmydevice.permissions.Permissions.openAppDetails
+import com.github.ringmydevice.ui.model.CommandItem
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommandScreen(modifier: Modifier = Modifier) {
-    val commandItems = listOf(
-        CommandItem(
-            title = "bluetooth [on | off]",
-            description = "Toggle Bluetooth on and off",
-            requiredPermissions = listOf("Connect Bluetooth"),
-            icon = Icons.Outlined.Bluetooth,
-            exampleSyntax = "rmd bluetooth on"
-        ),
-        CommandItem(
-            title = "camera [front | back]",
-            description = "Take a picture",
-            requiredPermissions = listOf("Camera"),
-            icon = Icons.Outlined.CameraAlt,
-            exampleSyntax = "rmd camera front"
-        ),
-        CommandItem(
-            title = "delete <pin> [dryrun]",
-            description = "Factory-reset the device",
-            requiredPermissions = listOf("Device admin"),
-            icon = Icons.Outlined.DeleteForever,
-            exampleSyntax = "rmd delete 1234"
-        )
-    )
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val vm = androidx.lifecycle.viewmodel.compose.viewModel<com.github.ringmydevice.viewmodel.CommandViewModel>()
+    var showLogs by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Offline phone recovery that works anywhere",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "Find, lock, wipe, ring, and get photos by SMS or over a mesh. No Google account. No internet required.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+    LaunchedEffect(Unit) { vm.refresh() }
+
+    // Data for the cards
+    val commandItems = remember {
+        listOf(
+            CommandItem(
+                title = "bluetooth [on | off]",
+                description = "Toggle Bluetooth on and off",
+                requiredPermissions = listOf("Connect Bluetooth"),
+                icon = Icons.Outlined.Bluetooth,
+                exampleSyntax = "rmd bluetooth on"
+            ),
+            CommandItem(
+                title = "camera [front | back]",
+                description = "Take a picture",
+                requiredPermissions = listOf("Camera"),
+                icon = Icons.Outlined.CameraAlt,
+                exampleSyntax = "rmd camera front"
+            ),
+            CommandItem(
+                title = "delete <pin> [dryrun]",
+                description = "Factory-reset the device",
+                requiredPermissions = listOf("Device admin"),
+                icon = Icons.Outlined.DeleteForever,
+                exampleSyntax = "rmd delete 1234"
+            )
+        )
+    }
+
+    Box(modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Developer demo tools
+            item {
+                ElevatedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Developer demo", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedButton(onClick = { vm.simulateRing(context = ctx, seconds = 5) }) {
+                                Text("Simulate RING 5s")
+                            }
+                            OutlinedButton(onClick = { vm.simulateLocate() }) {
+                                Text("Simulate LOCATE")
+                            }
+                            OutlinedButton(onClick = { showLogs = true }) {
+                                Text("Show logs")
+                            }
+                        }
+                    }
                 }
+            }
+
+            // Promo card
+            item {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Offline phone recovery that works anywhere",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Find, lock, wipe, ring, and get photos by SMS or over a mesh. No Google account. No internet required.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+
+            // Command cards
+            items(commandItems) { item ->
+                CommandCard(item)
             }
         }
 
-        items(commandItems) { item ->
-            CommandCard(item)
+        if (showLogs) {
+            ModalBottomSheet(onDismissRequest = { showLogs = false }) {
+                com.github.ringmydevice.ui.commands.LogsSheet(vm) { showLogs = false }
+            }
         }
     }
 }
+
 
 @Composable
 private fun CommandCard(item: CommandItem) {
