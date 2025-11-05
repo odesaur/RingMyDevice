@@ -11,11 +11,14 @@ import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.github.ringmydevice.ui.model.CommandItem
+import com.github.ringmydevice.permissions.Permissions.openAppDetails
 
 @Composable
 fun CommandScreen(modifier: Modifier = Modifier) {
@@ -83,6 +86,19 @@ private fun CommandCard(item: CommandItem) {
         android.util.Log.d("RMD", "Permission result: $it")
     }
 
+    // State: whether permission is currently granted
+    val permissionGranted = remember {
+        mutableStateOf(
+            when {
+                item.title.startsWith("bluetooth") ->
+                    com.github.ringmydevice.permissions.Permissions.has(ctx, com.github.ringmydevice.permissions.Permissions.requiredForBluetoothConnect())
+                item.title.startsWith("camera") ->
+                    com.github.ringmydevice.permissions.Permissions.has(ctx, com.github.ringmydevice.permissions.Permissions.requiredForCamera())
+                else -> false
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -95,7 +111,9 @@ private fun CommandCard(item: CommandItem) {
                     Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(item.description, style = MaterialTheme.typography.bodyMedium)
                 }
-                IconButton(onClick = {}) { Icon(Icons.AutoMirrored.Outlined.ListAlt, contentDescription = "Details") }
+                IconButton(onClick = {}) {
+                    Icon(Icons.AutoMirrored.Outlined.ListAlt, contentDescription = "Details")
+                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -114,20 +132,35 @@ private fun CommandCard(item: CommandItem) {
                     when {
                         item.title.startsWith("bluetooth") -> {
                             val p = com.github.ringmydevice.permissions.Permissions.requiredForBluetoothConnect()
-                            if (!com.github.ringmydevice.permissions.Permissions.has(ctx, p)) requestPermission(p)
+                            if (permissionGranted.value) {
+                                // "Revoke" path — open app settings so user can revoke manually
+                                openAppDetails(ctx)
+                            } else {
+                                requestPermission(p)
+                            }
+                            permissionGranted.value = com.github.ringmydevice.permissions.Permissions.has(ctx, p)
                         }
+
                         item.title.startsWith("camera") -> {
                             val p = com.github.ringmydevice.permissions.Permissions.requiredForCamera()
-                            if (!com.github.ringmydevice.permissions.Permissions.has(ctx, p)) requestPermission(p)
+                            if (permissionGranted.value) {
+                                openAppDetails(ctx)
+                            } else {
+                                requestPermission(p)
+                            }
+                            permissionGranted.value = com.github.ringmydevice.permissions.Permissions.has(ctx, p)
                         }
+
                         item.title.startsWith("delete") -> {
-                            // Special access: open settings screen (no ActivityResult needed)
                             com.github.ringmydevice.permissions.DoNotDisturbAccessPermission.request(ctx)
                         }
                     }
-                }) { Text("Grant") }
+                }) {
+                    Text(if (permissionGranted.value) "Revoke" else "Grant")
+                }
             }
         }
     }
 }
+
 
