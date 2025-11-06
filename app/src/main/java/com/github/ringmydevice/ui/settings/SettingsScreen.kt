@@ -16,6 +16,9 @@ import com.github.ringmydevice.ui.model.SettingsItem
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
+    onNavigateToGeneral: () -> Unit = {},
+    onNavigateToFmd: () -> Unit = {},
+    onNavigateToAppearance: () -> Unit = {},
     onNavigateToLogs: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
     onNavigateToAllowedContacts: () -> Unit = {},
@@ -46,6 +49,9 @@ fun SettingsScreen(
                     .fillMaxWidth()
                     .clickable {
                         when (item.title) {
+                            "General" -> onNavigateToGeneral()
+                            "FMD Server" -> onNavigateToFmd()
+                            "Appearance" -> onNavigateToAppearance()
                             "Allowed contacts" -> onNavigateToAllowedContacts()
                             "Logs" -> onNavigateToLogs()
                             "About" -> onNavigateToAbout()
