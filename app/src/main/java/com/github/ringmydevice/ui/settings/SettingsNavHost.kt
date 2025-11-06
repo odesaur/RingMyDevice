@@ -32,12 +32,12 @@ fun SettingsNavHost(
         // Home list (your stubbed items)
         composable(SettingsRoutes.HOME) {
             SettingsScreen(
-                onNavigateToGeneral = { nav.navigate(SettingsRoutes.GENERAL) },
-                onNavigateToFmd = { nav.navigate(SettingsRoutes.FMD) },
-                onNavigateToAppearance = { nav.navigate(SettingsRoutes.APPEARANCE) },
-                onNavigateToLogs = { nav.navigate(SettingsRoutes.LOGS) },
-                onNavigateToAbout = { nav.navigate(SettingsRoutes.ABOUT) },
-                onNavigateToAllowedContacts = { nav.navigate(SettingsRoutes.ALLOWED) },
+                onOpenGeneral = { nav.navigate(SettingsRoutes.GENERAL) },
+                onOpenServer = { nav.navigate(SettingsRoutes.FMD) },
+                onOpenAppearance = { nav.navigate(SettingsRoutes.APPEARANCE) },
+                onOpenLogs = { nav.navigate(SettingsRoutes.LOGS) },
+                onOpenAbout = { nav.navigate(SettingsRoutes.ABOUT) },
+                onOpenAllowedContacts = { nav.navigate(SettingsRoutes.ALLOWED) },
             )
         }
 
