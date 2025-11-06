@@ -1,68 +1,80 @@
+@file:Suppress("FunctionName")
+
 package com.github.ringmydevice.ui.settings
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.ImportExport
+import androidx.compose.material.icons.outlined.ListAlt
+import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.github.ringmydevice.ui.model.SettingsItem
+import androidx.compose.ui.graphics.vector.ImageVector
 
-@OptIn(ExperimentalMaterial3Api::class)
+private data class SettingRow(
+    val title: String,
+    val subtitle: String? = null,
+    val icon: ImageVector,
+    val onClick: () -> Unit = {}
+)
+
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
-    onNavigateToGeneral: () -> Unit = {},
-    onNavigateToFmd: () -> Unit = {},
-    onNavigateToAppearance: () -> Unit = {},
-    onNavigateToLogs: () -> Unit = {},
-    onNavigateToAbout: () -> Unit = {},
-    onNavigateToAllowedContacts: () -> Unit = {},
+    onOpenGeneral: () -> Unit = {},
+    onOpenServer: () -> Unit = {},
+    onOpenAllowedContacts: () -> Unit = {},
+    onOpenOpenCellId: () -> Unit = {},
+    onOpenAppearance: () -> Unit = {},
+    onExport: () -> Unit = {},
+    onImport: () -> Unit = {},
+    onOpenLogs: () -> Unit = {},
+    onOpenAbout: () -> Unit = {}
 ) {
     val items = listOf(
-        SettingsItem("General", Icons.Outlined.Settings, "System and app defaults"),
-        SettingsItem("FMD Server", Icons.Outlined.Public, "Link a Find-My-Device server"), // TODO
-        SettingsItem("Allowed contacts", Icons.Outlined.People, "Set who can trigger commands"),
-        SettingsItem("OpenCelliD", Icons.Outlined.Map, "Contribute tower data"), // TODO
-        SettingsItem("Appearance", Icons.Outlined.Palette, "Theme and color scheme"), // TODO
-        SettingsItem("Export settings", Icons.Outlined.FileUpload, "Create a backup"), // TODO
-        SettingsItem("Import settings", Icons.Outlined.FileDownload, "Restore from a backup"), // TODO
-        SettingsItem("Logs", Icons.Outlined.ListAlt, "View recent actions and SMS triggers"),
-        SettingsItem("About", Icons.Outlined.Info, "Version and credits")
+        SettingRow("General", icon = Icons.Outlined.Settings, onClick = onOpenGeneral),
+        SettingRow("FMD Server", icon = Icons.Outlined.Public, onClick = onOpenServer),
+        SettingRow("Allowed contacts", icon = Icons.Outlined.People, onClick = onOpenAllowedContacts),
+        SettingRow("OpenCelliD", icon = Icons.Outlined.Map, onClick = onOpenOpenCellId),
+        SettingRow("Appearance", icon = Icons.Outlined.Palette, onClick = onOpenAppearance),
+        SettingRow("Export settings", subtitle = "Create a backup", icon = Icons.Outlined.ImportExport, onClick = onExport),
+        SettingRow("Import settings", subtitle = "Restore from a backup", icon = Icons.Outlined.ImportExport, onClick = onImport),
+        SettingRow("Logs", icon = Icons.Outlined.ListAlt, onClick = onOpenLogs),
+        SettingRow("About", icon = Icons.Outlined.Info, onClick = onOpenAbout)
     )
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        items(items) { item ->
+        items(items) { row ->
             ListItem(
-                headlineContent = { Text(item.title) },
-                supportingContent = item.description?.let { { Text(it) } },
-                leadingContent = { Icon(item.icon, contentDescription = null) },
+                headlineContent = { Text(row.title) },
+                supportingContent = row.subtitle?.let { { Text(it) } },
+                leadingContent = { Icon(row.icon, contentDescription = null) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
-                        when (item.title) {
-                            "General" -> onNavigateToGeneral()
-                            "FMD Server" -> onNavigateToFmd()
-                            "Appearance" -> onNavigateToAppearance()
-                            "Allowed contacts" -> onNavigateToAllowedContacts()
-                            "Logs" -> onNavigateToLogs()
-                            "About" -> onNavigateToAbout()
-                            else -> {
-                                // Stub for later
-                                println("TODO: ${item.title} not implemented yet.")
-                            }
-                        }
-                    }
+                    .clickable { row.onClick() }
+                    .padding(horizontal = 12.dp, vertical = 2.dp)
             )
-            Divider()
+            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
         }
     }
 }
