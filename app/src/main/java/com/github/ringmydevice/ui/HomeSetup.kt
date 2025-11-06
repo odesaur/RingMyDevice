@@ -9,13 +9,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.github.ringmydevice.ui.commands.CommandScreen
 import com.github.ringmydevice.ui.model.HomeTab
 import com.github.ringmydevice.ui.settings.SettingsNavHost
-import com.github.ringmydevice.ui.settings.SettingsScreen
 import com.github.ringmydevice.ui.theme.RMDTheme
+import com.github.ringmydevice.ui.theme.ThemePreference
+import com.github.ringmydevice.ui.theme.ThemeSettingsState
+import com.github.ringmydevice.ui.theme.rememberThemeSettingsState
 import com.github.ringmydevice.ui.transport.TransportScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeSetup() {
+fun HomeSetup(themeSettings: ThemeSettingsState) {
     var selectedTab by remember { mutableStateOf(HomeTab.Commands) }
 
     Scaffold(
@@ -45,11 +47,22 @@ fun HomeSetup() {
         when (selectedTab) {
             HomeTab.Commands -> CommandScreen(Modifier.padding(inner))
             HomeTab.Transport -> TransportScreen(Modifier.padding(inner))
-            HomeTab.Settings -> SettingsNavHost(Modifier.padding(inner))
+            HomeTab.Settings -> SettingsNavHost(
+                modifier = Modifier.padding(inner),
+                themeSettings = themeSettings
+            )
         }
     }
 }
 
 @Preview(showSystemUi = true)
 @Composable
-private fun PreviewHome() { RMDTheme { HomeSetup() } }
+private fun PreviewHome() {
+    val themeSettings = rememberThemeSettingsState(
+        preference = ThemePreference.DARK,
+        useDynamicColor = false
+    )
+    RMDTheme(useDarkTheme = true, useDynamicColor = false) {
+        HomeSetup(themeSettings)
+    }
+}

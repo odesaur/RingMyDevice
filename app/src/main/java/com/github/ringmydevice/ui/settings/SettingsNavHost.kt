@@ -1,13 +1,11 @@
 package com.github.ringmydevice.ui.settings
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.github.ringmydevice.ui.theme.ThemeSettingsState
 
 private object SettingsRoutes {
     const val HOME = "settings/home"
@@ -20,7 +18,10 @@ private object SettingsRoutes {
 }
 
 @Composable
-fun SettingsNavHost(modifier: Modifier = Modifier) {
+fun SettingsNavHost(
+    modifier: Modifier = Modifier,
+    themeSettings: ThemeSettingsState
+) {
     val nav = rememberNavController()
 
     NavHost(
@@ -57,7 +58,10 @@ fun SettingsNavHost(modifier: Modifier = Modifier) {
             FmdServerScreen(onBack = { nav.popBackStack() })
         }
         composable(SettingsRoutes.APPEARANCE) {
-            AppearanceScreen(onBack = { nav.popBackStack() })
+            AppearanceScreen(
+                onBack = { nav.popBackStack() },
+                themeSettings = themeSettings
+            )
         }
     }
 }

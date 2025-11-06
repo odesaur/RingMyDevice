@@ -7,25 +7,35 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.github.ringmydevice.ui.theme.ThemePreference
+import com.github.ringmydevice.ui.theme.ThemeSettingsState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceScreen(
     onBack: () -> Unit,
+    themeSettings: ThemeSettingsState,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val themeOptions = listOf("System default", "Light", "Dark")
-    var selectedTheme by rememberSaveable { mutableStateOf(themeOptions.first()) }
-    var dynamicColors by rememberSaveable { mutableStateOf(true) }
+    val themeOptions = listOf(
+        ThemePreference.SYSTEM to "System default",
+        ThemePreference.LIGHT to "Light",
+        ThemePreference.DARK to "Dark"
+    )
+    val selectTheme: (ThemePreference, String) -> Unit = { preference, label ->
+        if (themeSettings.themePreference != preference) {
+            themeSettings.themePreference = preference
+            scope.launch { snackbarHostState.showSnackbar("Theme updated: $label") }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -53,20 +63,20 @@ fun AppearanceScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
-            items(themeOptions.size) { i ->
-                val option = themeOptions[i]
+            items(themeOptions.size) { index ->
+                val (preference, label) = themeOptions[index]
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { selectedTheme = option }
+                        .clickable { selectTheme(preference, label) }
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     RadioButton(
-                        selected = selectedTheme == option,
-                        onClick = { selectedTheme = option }
+                        selected = themeSettings.themePreference == preference,
+                        onClick = { selectTheme(preference, label) }
                     )
-                    Text(option, modifier = Modifier.padding(start = 12.dp))
+                    Text(label, modifier = Modifier.padding(start = 12.dp))
                 }
                 Divider()
             }
@@ -75,25 +85,19 @@ fun AppearanceScreen(
                     headlineContent = { Text("Dynamic colors") },
                     supportingContent = { Text("Match system accent colors") },
                     trailingContent = {
-                        Switch(checked = dynamicColors, onCheckedChange = { dynamicColors = it })
+                        Switch(
+                            checked = themeSettings.useDynamicColor,
+                            onCheckedChange = { enabled ->
+                                themeSettings.useDynamicColor = enabled
+                                val status = if (enabled) "enabled" else "disabled"
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Dynamic colors $status")
+                                }
+                            }
+                        )
                     }
                 )
                 Divider()
-            }
-            item {
-                Button(
-                    onClick = {
-                        // placeholder
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Appearance updated")
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text("Apply")
-                }
             }
         }
     }
