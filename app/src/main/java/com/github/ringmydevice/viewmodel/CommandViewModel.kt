@@ -6,12 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.github.ringmydevice.data.model.CommandLog
 import com.github.ringmydevice.data.model.CommandType
 import com.github.ringmydevice.data.repo.CommandRepository
+import com.github.ringmydevice.di.AppGraph
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class CommandViewModel(
-    private val repo: CommandRepository = CommandRepository.fake() // default fake
+    private val repo: CommandRepository = AppGraph.commandRepo // default fake
 ) : ViewModel() {
 
     private val _logs = MutableStateFlow<List<CommandLog>>(emptyList())

@@ -8,6 +8,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import com.github.ringmydevice.ui.commands.CommandScreen
 import com.github.ringmydevice.ui.model.HomeTab
+import com.github.ringmydevice.ui.settings.SettingsNavHost
 import com.github.ringmydevice.ui.settings.SettingsScreen
 import com.github.ringmydevice.ui.theme.RMDTheme
 import com.github.ringmydevice.ui.transport.TransportScreen
@@ -44,7 +45,7 @@ fun HomeSetup() {
         when (selectedTab) {
             HomeTab.Commands -> CommandScreen(Modifier.padding(inner))
             HomeTab.Transport -> TransportScreen(Modifier.padding(inner))
-            HomeTab.Settings -> SettingsScreen(Modifier.padding(inner))
+            HomeTab.Settings -> SettingsNavHost(Modifier.padding(inner))
         }
     }
 }
