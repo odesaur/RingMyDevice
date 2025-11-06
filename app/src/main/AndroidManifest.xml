@@ -18,6 +18,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Android 12+ Bluetooth (for future bluetooth command) -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Special access permissions surfaced in UI cards -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Foreground service type for playing a tone (Android 14+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <application
