@@ -14,6 +14,9 @@ private object SettingsRoutes {
     const val LOGS = "settings/logs"
     const val ABOUT = "settings/about"
     const val ALLOWED = "settings/allowed"
+    const val GENERAL = "settings/general"
+    const val FMD = "settings/fmd"
+    const val APPEARANCE = "settings/appearance"
 }
 
 @Composable
@@ -28,6 +31,9 @@ fun SettingsNavHost(modifier: Modifier = Modifier) {
         // Home list (your stubbed items)
         composable(SettingsRoutes.HOME) {
             SettingsScreen(
+                onNavigateToGeneral = { nav.navigate(SettingsRoutes.GENERAL) },
+                onNavigateToFmd = { nav.navigate(SettingsRoutes.FMD) },
+                onNavigateToAppearance = { nav.navigate(SettingsRoutes.APPEARANCE) },
                 onNavigateToLogs = { nav.navigate(SettingsRoutes.LOGS) },
                 onNavigateToAbout = { nav.navigate(SettingsRoutes.ABOUT) },
                 onNavigateToAllowedContacts = { nav.navigate(SettingsRoutes.ALLOWED) },
@@ -43,6 +49,15 @@ fun SettingsNavHost(modifier: Modifier = Modifier) {
         }
         composable(SettingsRoutes.ALLOWED) {
             AllowedContactsScreen(onBack = { nav.popBackStack() })
+        }
+        composable(SettingsRoutes.GENERAL) {
+            GeneralSettingsScreen(onBack = { nav.popBackStack() })
+        }
+        composable(SettingsRoutes.FMD) {
+            FmdServerScreen(onBack = { nav.popBackStack() })
+        }
+        composable(SettingsRoutes.APPEARANCE) {
+            AppearanceScreen(onBack = { nav.popBackStack() })
         }
     }
 }
