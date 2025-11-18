@@ -22,16 +22,18 @@ fun HomeSetup(themeSettings: ThemeSettingsState) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "RMD",
-                        style = MaterialTheme.typography.titleLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            )
+            if (selectedTab != HomeTab.Settings) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "RMD",
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                )
+            }
         },
         bottomBar = {
             NavigationBar {
