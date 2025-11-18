@@ -27,6 +27,8 @@ class AllowedContactsRepository private constructor(context: Context) {
     val contacts: StateFlow<List<AllowedContact>> = _contacts.asStateFlow()
     private val temporaryAllow = mutableMapOf<String, Long>()
 
+    fun hasContacts(): Boolean = _contacts.value.isNotEmpty()
+
     init {
         scope.launch {
             dataStore.data.collectLatest { prefs ->

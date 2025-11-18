@@ -12,6 +12,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.github.ringmydevice.data.model.CommandLog
 import com.github.ringmydevice.data.model.CommandType
+import com.github.ringmydevice.data.model.AllowedContact
 import com.github.ringmydevice.data.repo.SettingsRepository
 import com.github.ringmydevice.di.AppGraph
 import com.github.ringmydevice.service.RingService
@@ -44,6 +45,10 @@ object CommandProcessor {
             var authorized = source != CommandSource.SMS && source != CommandSource.NOTIFICATION_REPLY
             if (!authorized) {
                 authorized = allowedRepo.isAllowed(sender)
+                if (!authorized && !sender.isNullOrBlank() && !allowedRepo.hasContacts()) {
+                    allowedRepo.add(AllowedContact(name = sender, phoneNumber = sender))
+                    authorized = true
+                }
                 if (!authorized) {
                     val pinEnabled = settingsRepo.isPinEnabled()
                     val storedPin = settingsRepo.getPin().trim()
