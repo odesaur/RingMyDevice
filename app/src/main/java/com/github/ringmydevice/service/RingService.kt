@@ -68,6 +68,12 @@ class RingService : Service() {
     private fun playRingtone(uri: Uri?, seconds: Int): Boolean {
         if (uri == null) return false
         val ring = runCatching { RingtoneManager.getRingtone(this, uri) }.getOrNull() ?: return false
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        am.setStreamVolume(
+            AudioManager.STREAM_ALARM,
+            am.getStreamMaxVolume(AudioManager.STREAM_ALARM),
+            0
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             ring.audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ALARM)
