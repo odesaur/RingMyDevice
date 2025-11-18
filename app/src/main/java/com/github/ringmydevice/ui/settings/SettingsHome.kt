@@ -54,13 +54,9 @@ fun SettingsHome(
                 supportingContent = r.subtitle?.let { { Text(it) } },
                 leadingContent = { Icon(r.icon, contentDescription = null) },
                 modifier = Modifier
-                    .then(Modifier) // clickable provided by ListItem via onClick param in M3 1.3+, else wrap in clickable
+                    .then(Modifier)
                     .clickable(onClick = r.onClick)
             )
-            // If your M3 version doesn't have onClick in ListItem, wrap with Clickable modifier:
-            // .clickable(onClick = r.onClick)
-            // For simplicity, call immediately:
-            androidx.compose.runtime.SideEffect { /* no-op */ }
         }
     }
 }
