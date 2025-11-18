@@ -1,18 +1,38 @@
 package com.github.ringmydevice.data.repo
 
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.github.ringmydevice.data.datastore.appDataStore
 import com.github.ringmydevice.data.model.AllowedContact
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
+import org.json.JSONArray
+import org.json.JSONObject
 
-/**
- * Simple in-memory allowed contacts list for Show & Tell 1.
- * Swap to DataStore/Room later.
- */
-class AllowedContactsRepository private constructor() {
+class AllowedContactsRepository private constructor(context: Context) {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val dataStore = context.appDataStore
+    private val keyAllowedContacts = stringPreferencesKey("allowed_contacts_json")
 
     private val _contacts = MutableStateFlow<List<AllowedContact>>(emptyList())
     val contacts: StateFlow<List<AllowedContact>> = _contacts.asStateFlow()
+
+    init {
+        scope.launch {
+            dataStore.data.collectLatest { prefs ->
+                val raw = prefs[keyAllowedContacts]
+                _contacts.value = raw?.let { decodeContacts(it) } ?: emptyList()
+            }
+        }
+    }
 
     private fun AllowedContact.sanitized(): AllowedContact =
         AllowedContact(name = name.trim(), phoneNumber = phoneNumber.trim())
@@ -33,28 +53,30 @@ class AllowedContactsRepository private constructor() {
         if (key.isBlank()) return false
         val exists = _contacts.value.any { normalize(it) == key }
         if (exists) return false
-        _contacts.value = _contacts.value + sanitized
+        persistContacts(_contacts.value + sanitized)
         return true
     }
 
     fun removeAt(index: Int) {
         if (index !in _contacts.value.indices) return
-        _contacts.value = _contacts.value.toMutableList().apply { removeAt(index) }
+        val updated = _contacts.value.toMutableList().apply { removeAt(index) }
+        persistContacts(updated)
     }
 
     fun remove(raw: String) {
         if (raw.isBlank()) return
         val digits = normalizePhone(raw)
-        if (digits.isNotBlank()) {
-            _contacts.value = _contacts.value.filterNot { normalizePhone(it.phoneNumber) == digits }
-            return
+        val updated = if (digits.isNotBlank()) {
+            _contacts.value.filterNot { normalizePhone(it.phoneNumber) == digits }
+        } else {
+            val normalizedName = normalizeName(raw)
+            _contacts.value.filterNot { normalizeName(it.name) == normalizedName }
         }
-        val normalizedName = normalizeName(raw)
-        _contacts.value = _contacts.value.filterNot { normalizeName(it.name) == normalizedName }
+        persistContacts(updated)
     }
 
     fun clear() {
-        _contacts.value = emptyList()
+        persistContacts(emptyList())
     }
 
     /** Check if given sender (e.g., "+1-604…", "Alice") is allowed. */
@@ -69,8 +91,56 @@ class AllowedContactsRepository private constructor() {
         return _contacts.value.any { normalizeName(it.name) == normalizedName }
     }
 
+    private fun persistContacts(list: List<AllowedContact>) {
+        _contacts.value = list
+        scope.launch {
+            dataStore.edit { prefs ->
+                if (list.isEmpty()) {
+                    prefs.remove(keyAllowedContacts)
+                } else {
+                    prefs[keyAllowedContacts] = encodeContacts(list)
+                }
+            }
+        }
+    }
+
+    private fun encodeContacts(list: List<AllowedContact>): String {
+        val array = JSONArray()
+        list.forEach { contact ->
+            array.put(
+                JSONObject().apply {
+                    put("name", contact.name)
+                    put("phone", contact.phoneNumber)
+                }
+            )
+        }
+        return array.toString()
+    }
+
+    private fun decodeContacts(raw: String): List<AllowedContact> =
+        runCatching {
+            val array = JSONArray(raw)
+            buildList(array.length()) {
+                for (index in 0 until array.length()) {
+                    val obj = array.getJSONObject(index)
+                    add(
+                        AllowedContact(
+                            name = obj.optString("name"),
+                            phoneNumber = obj.optString("phone")
+                        )
+                    )
+                }
+            }
+        }.getOrElse { emptyList() }
+
     companion object {
-        // simple singleton; replace with DI later
-        val instance: AllowedContactsRepository by lazy { AllowedContactsRepository() }
+        @Volatile
+        private var INSTANCE: AllowedContactsRepository? = null
+
+        fun getInstance(context: Context): AllowedContactsRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AllowedContactsRepository(context.applicationContext).also { INSTANCE = it }
+            }
+        }
     }
 }

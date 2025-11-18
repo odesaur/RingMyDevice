@@ -25,7 +25,7 @@ fun HomeSetup(themeSettings: ThemeSettingsState) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Ring My Device",
+                        text = "RMD",
                         style = MaterialTheme.typography.titleLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

@@ -7,23 +7,25 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import com.github.ringmydevice.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FmdServerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = viewModel()
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    var serverUrl by rememberSaveable { mutableStateOf("") }
-    var accessToken by rememberSaveable { mutableStateOf("") }
-    var uploadWhenOnline by rememberSaveable { mutableStateOf(true) }
+    val serverUrl by viewModel.fmdServerUrl.collectAsState()
+    val accessToken by viewModel.fmdAccessToken.collectAsState()
+    val uploadWhenOnline by viewModel.fmdUploadWhenOnline.collectAsState()
 
     Scaffold(
         topBar = {
@@ -47,7 +49,7 @@ fun FmdServerScreen(
             item {
                 OutlinedTextField(
                     value = serverUrl,
-                    onValueChange = { serverUrl = it },
+                    onValueChange = { viewModel.setFmdServerUrl(it) },
                     label = { Text("Server URL") },
                     placeholder = { Text("https://example.com") },
                     singleLine = true,
@@ -59,7 +61,7 @@ fun FmdServerScreen(
             item {
                 OutlinedTextField(
                     value = accessToken,
-                    onValueChange = { accessToken = it },
+                    onValueChange = { viewModel.setFmdAccessToken(it) },
                     label = { Text("Access token (optional)") },
                     singleLine = true,
                     modifier = Modifier
@@ -74,7 +76,7 @@ fun FmdServerScreen(
                     trailingContent = {
                         Switch(
                             checked = uploadWhenOnline,
-                            onCheckedChange = { uploadWhenOnline = it }
+                            onCheckedChange = { viewModel.setFmdUploadWhenOnline(it) }
                         )
                     }
                 )
@@ -98,8 +100,8 @@ fun FmdServerScreen(
 
                     OutlinedButton(
                         onClick = {
-                            serverUrl = ""
-                            accessToken = ""
+                            viewModel.setFmdServerUrl("")
+                            viewModel.setFmdAccessToken("")
                             scope.launch {
                                 snackbarHostState.showSnackbar("Server unlinked")
                             }

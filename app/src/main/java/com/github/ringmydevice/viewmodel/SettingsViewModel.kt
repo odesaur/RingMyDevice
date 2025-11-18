@@ -1,22 +1,20 @@
 package com.github.ringmydevice.viewmodel
 
 import android.app.Application
-import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.ringmydevice.data.datastore.appDataStore
+import com.github.ringmydevice.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-private val Context.dataStore by preferencesDataStore(name = "app_settings")
-
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
-    private val dataStore = application.dataStore
+    private val dataStore = application.appDataStore
 
     // define keys
     companion object {
@@ -30,6 +28,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val RMD_COMMAND = stringPreferencesKey("rmd_command")
         val RMD_RINGTONE = stringPreferencesKey("rmd_ringtone")
         val RMD_LOCK_MESSAGE = stringPreferencesKey("rmd_lock_message")
+        val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
+        val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
+        val FMD_SERVER_URL = stringPreferencesKey("fmd_server_url")
+        val FMD_ACCESS_TOKEN = stringPreferencesKey("fmd_access_token")
+        val FMD_UPLOAD_WHEN_ONLINE = booleanPreferencesKey("fmd_upload_when_online")
     }
 
     // read fata
@@ -59,6 +62,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val rmdLockMessage = dataStore.data
         .map { it[RMD_LOCK_MESSAGE] ?: "" }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val themePreference = dataStore.data
+        .map { prefs -> ThemePreference.valueOf(prefs[THEME_PREFERENCE] ?: ThemePreference.SYSTEM.name) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemePreference.SYSTEM)
+
+    val useDynamicColor = dataStore.data
+        .map { it[USE_DYNAMIC_COLOR] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val fmdServerUrl = dataStore.data
+        .map { it[FMD_SERVER_URL] ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val fmdAccessToken = dataStore.data
+        .map { it[FMD_ACCESS_TOKEN] ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val fmdUploadWhenOnline = dataStore.data
+        .map { it[FMD_UPLOAD_WHEN_ONLINE] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     // write Data
     fun setRingEnabled(value: Boolean) {
@@ -100,5 +123,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setRmdLockMessage(message: String) {
         viewModelScope.launch { dataStore.edit { it[RMD_LOCK_MESSAGE] = message } }
+    }
+
+    fun setThemePreference(preference: ThemePreference) {
+        viewModelScope.launch { dataStore.edit { it[THEME_PREFERENCE] = preference.name } }
+    }
+
+    fun setUseDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { dataStore.edit { it[USE_DYNAMIC_COLOR] = enabled } }
+    }
+
+    fun setFmdServerUrl(url: String) {
+        viewModelScope.launch { dataStore.edit { it[FMD_SERVER_URL] = url } }
+    }
+
+    fun setFmdAccessToken(token: String) {
+        viewModelScope.launch { dataStore.edit { it[FMD_ACCESS_TOKEN] = token } }
+    }
+
+    fun setFmdUploadWhenOnline(enabled: Boolean) {
+        viewModelScope.launch { dataStore.edit { it[FMD_UPLOAD_WHEN_ONLINE] = enabled } }
     }
 }

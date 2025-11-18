@@ -31,7 +31,7 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Ring My Device", style = MaterialTheme.typography.titleLarge)
+            Text("RMD", style = MaterialTheme.typography.titleLarge)
             Text("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             Text("Works offline. Receive commands via SMS or mesh and trigger device actions.")
             HorizontalDivider()
