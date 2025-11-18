@@ -25,6 +25,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val PHOTO_ENABLED = booleanPreferencesKey("photo_enabled")
         val TRUSTED_NUMBER = stringPreferencesKey("trusted_number")
         val SECRET_KEY = stringPreferencesKey("secret_key")
+        val RMD_PIN_ENABLED = booleanPreferencesKey("rmd_pin_enabled")
+        val RMD_PIN = stringPreferencesKey("rmd_pin")
+        val RMD_COMMAND = stringPreferencesKey("rmd_command")
+        val RMD_RINGTONE = stringPreferencesKey("rmd_ringtone")
+        val RMD_LOCK_MESSAGE = stringPreferencesKey("rmd_lock_message")
     }
 
     // read fata
@@ -42,6 +47,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val savedTrustedNumber = dataStore.data.map { it[TRUSTED_NUMBER] ?: "" }
     val savedSecretKey = dataStore.data.map { it[SECRET_KEY] ?: "" }
+    val rmdPinEnabled = dataStore.data
+        .map { it[RMD_PIN_ENABLED] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val rmdCommand = dataStore.data
+        .map { it[RMD_COMMAND] ?: "rmd" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "rmd")
+    val rmdRingtone = dataStore.data
+        .map { it[RMD_RINGTONE] ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+    val rmdLockMessage = dataStore.data
+        .map { it[RMD_LOCK_MESSAGE] ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     // write Data
     fun setRingEnabled(value: Boolean) {
@@ -63,5 +80,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 it[SECRET_KEY] = secret
             }
         }
+    }
+
+    fun setRmdPinEnabled(enabled: Boolean) {
+        viewModelScope.launch { dataStore.edit { it[RMD_PIN_ENABLED] = enabled } }
+    }
+
+    fun setRmdPin(pin: String) {
+        viewModelScope.launch { dataStore.edit { it[RMD_PIN] = pin } }
+    }
+
+    fun setRmdCommand(command: String) {
+        viewModelScope.launch { dataStore.edit { it[RMD_COMMAND] = command } }
+    }
+
+    fun setRmdRingtone(uri: String) {
+        viewModelScope.launch { dataStore.edit { it[RMD_RINGTONE] = uri } }
+    }
+
+    fun setRmdLockMessage(message: String) {
+        viewModelScope.launch { dataStore.edit { it[RMD_LOCK_MESSAGE] = message } }
     }
 }

@@ -1,34 +1,62 @@
 package com.github.ringmydevice.ui.settings
 
-import android.content.Context
-import android.media.AudioManager
+import android.app.Activity
+import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
-import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.github.ringmydevice.viewmodel.SettingsViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.github.ringmydevice.R
-import androidx.core.net.toUri
 
-@RequiresApi(Build.VERSION_CODES.P)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeneralSettingsScreen(
@@ -38,24 +66,58 @@ fun GeneralSettingsScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current // access system services
+    val focusManager = LocalFocusManager.current
 
+    val rmdPinEnabled by viewModel.rmdPinEnabled.collectAsState()
+    val rmdCommand by viewModel.rmdCommand.collectAsState()
+    val ringtoneUri by viewModel.rmdRingtone.collectAsState()
+    val lockMessage by viewModel.rmdLockMessage.collectAsState()
 
-    // read from SettingsViewModel
-    val ringEnabled by viewModel.ringEnabled.collectAsState()
-    val locationEnabled by viewModel.locationEnabled.collectAsState()
-    val photoEnabled by viewModel.photoEnabled.collectAsState()
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinInput by remember { mutableStateOf("") }
 
-    // initial load for TextFields
-    val initialNumber by viewModel.savedTrustedNumber.collectAsState(initial = "")
-    val initialSecret by viewModel.savedSecretKey.collectAsState(initial = "")
+    var commandText by remember(rmdCommand) { mutableStateOf(rmdCommand) }
+    var lockMessageText by remember(lockMessage) { mutableStateOf(lockMessage) }
 
-    // local state for text inputs
-    var trustedNumber by remember(initialNumber) { mutableStateOf(initialNumber) }
-    var secretKey by remember(initialSecret) { mutableStateOf(initialSecret) }
+    fun commitCommand() {
+        val trimmed = commandText.trim()
+        if (trimmed.isNotEmpty()) {
+            viewModel.setRmdCommand(trimmed)
+        } else {
+            commandText = rmdCommand
+        }
+    }
 
-    LaunchedEffect(initialNumber) { trustedNumber = initialNumber }
-    LaunchedEffect(initialSecret) { secretKey = initialSecret }
+    fun commitLockMessage() {
+        viewModel.setRmdLockMessage(lockMessageText.trim())
+    }
+
+    val ringtonePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+        val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            result.data?.getParcelableExtra(
+                RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
+                Uri::class.java
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        }
+        viewModel.setRmdRingtone(uri?.toString() ?: "")
+    }
+
+    fun launchRingtonePicker() {
+        val currentUri = ringtoneUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
+        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, currentUri)
+        }
+        ringtonePickerLauncher.launch(intent)
+    }
 
     Scaffold(
         topBar = {
@@ -74,143 +136,201 @@ fun GeneralSettingsScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(inner),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item {
-                SwitchRow(
-                    title = "Enable Ring Command",
-                    subtitle = "Allow remote ring even if the phone is on silent",
-                    checked = ringEnabled,
-                    onCheckedChange = { viewModel.setRingEnabled(it) }
-                )
-                HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("RMD via PIN", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Allows you to communicate with RMD via a PIN. This allows you to send commands from a phone number that is not in the allowed contacts list.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Switch(
+                            checked = rmdPinEnabled,
+                            onCheckedChange = { enabled -> viewModel.setRmdPinEnabled(enabled) }
+                        )
+                        Text("Enable", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
             }
+
             item {
-                SwitchRow(
-                    title = "Enable Location",
-                    subtitle = "Return GPS coordinates on request",
-                    checked = locationEnabled,
-                    onCheckedChange = { viewModel.setLocationEnabled(it) }
-                )
-                HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
-            }
-            item {
-                SwitchRow(
-                    title = "Enable Photo Capture",
-                    subtitle = "Take a snapshot when requested",
-                    checked = photoEnabled,
-                    onCheckedChange = { viewModel.setPhotoEnabled(it) }
-                )
-                HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
-            }
-            item {
-                OutlinedTextField(
-                    value = trustedNumber,
-                    onValueChange = { trustedNumber = it },
-                    label = { Text("Trusted phone number") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = secretKey,
-                    onValueChange = { secretKey = it },
-                    label = { Text("Shared secret (optional)") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Divider()
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("PIN", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Used as confirmation before wiping the device and for anonymous usage of the service.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "Warning: The PIN is not included in the app backup.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
                     Button(
                         onClick = {
-                            viewModel.saveTextSettings(trustedNumber, secretKey)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Settings saved")
-                            }
+                            pinInput = ""
+                            showPinDialog = true
                         },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Save") }
+                        enabled = rmdPinEnabled,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Set PIN")
+                    }
+                }
+            }
 
-                    OutlinedButton(
-                        onClick = {
-                            scope.launch {
-                                val audioManager =
-                                    context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-                                // store the user current volume and ringer mode
-                                // we want the test ring to be at max volume and in normal mode
-                                val oldRingerMode = audioManager.ringerMode
-                                val oldVolume =
-                                    audioManager.getStreamVolume(AudioManager.STREAM_RING)
-                                val maxVolume =
-                                    audioManager.getStreamMaxVolume(AudioManager.STREAM_RING)
-
-                                val ringtoneUri =
-                                    "android.resource://${context.packageName}/${R.raw.ping_sound}".toUri()
-                                val ringtone = RingtoneManager.getRingtone(context, ringtoneUri)
-
-                                try {
-                                    audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
-                                    audioManager.setStreamVolume(
-                                        AudioManager.STREAM_RING,
-                                        maxVolume,
-                                        0
-                                    )
-
-                                    snackbarHostState.showSnackbar("Playing testing ring...")
-
-                                    ringtone.isLooping = true
-                                    ringtone.play()
-
-                                    delay(8000)
-
-                                    ringtone.stop()
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar("Error playing test ring: ${e.message}")
-                                } finally {
-                                    // restore the user volume and ringer mode
-                                    ringtone.isLooping = false
-                                    audioManager.setStreamVolume(
-                                        AudioManager.STREAM_RING,
-                                        oldVolume,
-                                        0
-                                    )
-                                    audioManager.ringerMode = oldRingerMode
+            item {
+                Divider()
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("rmd command", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "The command used to communicate with the RMD.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedTextField(
+                        value = commandText,
+                        onValueChange = { commandText = it },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focus ->
+                                if (!focus.isFocused) {
+                                    commitCommand()
                                 }
+                            },
+                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                commitCommand()
+                                focusManager.clearFocus()
                             }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Test ring") }
+                        )
+                    )
+                }
+            }
+
+            item {
+                Divider()
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("rmd ring", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Select a ringtone that will be played when rmd ring is sent.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Button(
+                        onClick = { launchRingtonePicker() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Select ringtone")
+                    }
+                }
+            }
+
+            item {
+                Divider()
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("rmd lock", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Lock screen message:\nWhen locking the device, this message will appear on the lock screen.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedTextField(
+                        value = lockMessageText,
+                        onValueChange = { lockMessageText = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp)
+                            .onFocusChanged { focus ->
+                                if (!focus.isFocused) {
+                                    commitLockMessage()
+                                }
+                            },
+                        keyboardOptions = KeyboardOptions.Default.copy(
+                            imeAction = ImeAction.Done,
+                            keyboardType = KeyboardType.Text
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                commitLockMessage()
+                                focusManager.clearFocus()
+                            }
+                        )
+                    )
                 }
             }
         }
     }
-}
 
-@Composable
-private fun SwitchRow(
-    title: String,
-    subtitle: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    ListItem(
-        headlineContent = { Text(title, style = MaterialTheme.typography.titleMedium) },
-        supportingContent = subtitle?.let { { Text(it) } },
-        trailingContent = {
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
-        }
-    )
+    if (showPinDialog) {
+        AlertDialog(
+            onDismissRequest = { showPinDialog = false },
+            title = { Text("Set PIN") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Enter a numeric PIN to confirm sensitive actions.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedTextField(
+                        value = pinInput,
+                        onValueChange = { value ->
+                            pinInput = value.filter { it.isDigit() }.take(8)
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.NumberPassword,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                if (pinInput.length >= 4) {
+                                    viewModel.setRmdPin(pinInput)
+                                    showPinDialog = false
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("PIN updated")
+                                    }
+                                }
+                            }
+                        ),
+                        visualTransformation = PasswordVisualTransformation()
+                    )
+                    Text(
+                        text = "PIN must be at least 4 digits.",
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Start
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (pinInput.length >= 4) {
+                            viewModel.setRmdPin(pinInput)
+                            showPinDialog = false
+                            scope.launch { snackbarHostState.showSnackbar("PIN updated") }
+                        } else {
+                            scope.launch { snackbarHostState.showSnackbar("Enter at least 4 digits") }
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPinDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
