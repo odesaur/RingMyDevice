@@ -26,7 +26,10 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         }
     ) { inner ->
         Column(
-            modifier = modifier.fillMaxSize().padding(inner).padding(16.dp),
+            modifier = modifier
+                .fillMaxSize()
+                .padding(inner)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Ring My Device", style = MaterialTheme.typography.titleLarge)

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.github.ringmydevice.viewmodel.CommandViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,8 +36,10 @@ fun LogsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         }
     ) { inner ->
         LazyColumn(
-            modifier = modifier.fillMaxSize().padding(inner),
-            contentPadding = PaddingValues(16.dp),
+            modifier = modifier
+                .fillMaxSize()
+                .padding(inner),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(logs) { log ->

@@ -42,7 +42,7 @@ fun FmdServerScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(inner),
-            contentPadding = PaddingValues(vertical = 8.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         ) {
             item {
                 OutlinedTextField(
