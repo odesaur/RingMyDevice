@@ -10,15 +10,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.ImportExport
-import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -56,7 +56,7 @@ fun SettingsScreen(
         SettingRow("Appearance", icon = Icons.Outlined.Palette, onClick = onOpenAppearance),
         SettingRow("Export settings", subtitle = "Create a backup", icon = Icons.Outlined.ImportExport, onClick = onExport),
         SettingRow("Import settings", subtitle = "Restore from a backup", icon = Icons.Outlined.ImportExport, onClick = onImport),
-        SettingRow("Logs", icon = Icons.Outlined.ListAlt, onClick = onOpenLogs),
+        SettingRow("Logs", icon = Icons.AutoMirrored.Outlined.ListAlt, onClick = onOpenLogs),
         SettingRow("About", icon = Icons.Outlined.Info, onClick = onOpenAbout)
     )
 
@@ -74,7 +74,7 @@ fun SettingsScreen(
                     .clickable { row.onClick() }
                     .padding(horizontal = 12.dp, vertical = 2.dp)
             )
-            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
         }
     }
 }

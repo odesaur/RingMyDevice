@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Tune
@@ -40,7 +40,7 @@ fun SettingsHome(
         Row("General", "Core commands and recovery options", Icons.Outlined.Tune, onOpenGeneral),
         Row("FMD Server", "Manage your self-hosted server", Icons.Outlined.Cloud, onOpenFmd),
         Row("Appearance", "Theme and color preferences", Icons.Outlined.Palette, onOpenAppearance),
-        Row("Logs", "Recent command activity", Icons.Outlined.ListAlt, onOpenLogs),
+        Row("Logs", "Recent command activity", Icons.AutoMirrored.Outlined.ListAlt, onOpenLogs),
         Row("Allowed contacts", "Who can send commands", Icons.Outlined.People, onOpenAllowed),
         Row("About", "Version & credits", Icons.Outlined.Info, onOpenAbout),
     )

@@ -4,7 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,7 +43,7 @@ fun AppearanceScreen(
                 title = { Text("Appearance") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -78,7 +78,7 @@ fun AppearanceScreen(
                     )
                     Text(label, modifier = Modifier.padding(start = 12.dp))
                 }
-                Divider()
+                HorizontalDivider()
             }
             item {
                 ListItem(
@@ -97,7 +97,7 @@ fun AppearanceScreen(
                         )
                     }
                 )
-                Divider()
+                HorizontalDivider()
             }
         }
     }

@@ -2,8 +2,7 @@ package com.github.ringmydevice.ui.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.Icons.Default
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,7 +18,7 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 title = { Text("About") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -35,7 +34,7 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             Text("Ring My Device", style = MaterialTheme.typography.titleLarge)
             Text("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             Text("Works offline. Receive commands via SMS or mesh and trigger device actions.")
-            Divider()
+            HorizontalDivider()
             Text("Credits", style = MaterialTheme.typography.titleMedium)
             Text("• Built with Jetpack Compose\n• Uses Android system services for alert, location, etc.")
         }
