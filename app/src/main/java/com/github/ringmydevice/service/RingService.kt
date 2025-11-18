@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.pm.ServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
@@ -16,6 +17,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.github.ringmydevice.ui.ringing.RingingActivity
 
@@ -30,9 +32,26 @@ class RingService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        val seconds = intent?.getIntExtra(EXTRA_SECONDS, 5) ?: 5
+        val seconds = intent?.getIntExtra(EXTRA_SECONDS, DEFAULT_SECONDS) ?: DEFAULT_SECONDS
         val ringtoneUri = intent?.getStringExtra(EXTRA_RINGTONE_URI)
-        startForeground(1, buildNotif())
+
+        val notification = buildNotif()
+        kotlin.runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        }.onFailure {
+            Log.e("RMD", "Unable to start foreground service", it)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         startTone(seconds, ringtoneUri)
         showRingingActivity()
         return START_STICKY
@@ -108,6 +127,8 @@ class RingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
+        private const val DEFAULT_SECONDS = 5
+        private const val NOTIFICATION_ID = 1
         const val EXTRA_SECONDS = "seconds"
         const val EXTRA_RINGTONE_URI = "ringtone_uri"
         const val ACTION_STOP = "com.github.ringmydevice.RING_STOP"

@@ -18,6 +18,10 @@ class SettingsRepository private constructor(context: Context) {
         dataStore.data.first()[SettingsViewModel.RMD_RINGTONE] ?: ""
     }
 
+    suspend fun isRingEnabled(): Boolean = withContext(Dispatchers.IO) {
+        dataStore.data.first()[SettingsViewModel.RING_ENABLED] ?: true
+    }
+
     suspend fun isPinEnabled(): Boolean = withContext(Dispatchers.IO) {
         dataStore.data.first()[SettingsViewModel.RMD_PIN_ENABLED] ?: false
     }
