@@ -11,8 +11,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -24,6 +25,7 @@ class AllowedContactsRepository private constructor(context: Context) {
 
     private val _contacts = MutableStateFlow<List<AllowedContact>>(emptyList())
     val contacts: StateFlow<List<AllowedContact>> = _contacts.asStateFlow()
+    private val temporaryAllow = mutableMapOf<String, Long>()
 
     init {
         scope.launch {
@@ -82,13 +84,22 @@ class AllowedContactsRepository private constructor(context: Context) {
     /** Check if given sender (e.g., "+1-604…", "Alice") is allowed. */
     fun isAllowed(sender: String?): Boolean {
         if (sender.isNullOrBlank()) return false
-        val digits = normalizePhone(sender)
-        if (digits.isNotBlank()) {
-            return _contacts.value.any { normalizePhone(it.phoneNumber) == digits }
+        val key = normalizeRaw(sender)
+        if (key.isBlank()) return false
+        cleanupTemporary(now = System.currentTimeMillis())
+        if (temporaryAllow[key]?.let { it > System.currentTimeMillis() } == true) {
+            return true
         }
-        val normalizedName = normalizeName(sender)
-        if (normalizedName.isBlank()) return false
-        return _contacts.value.any { normalizeName(it.name) == normalizedName }
+        return _contacts.value.any { normalize(it) == key }
+    }
+
+    fun grantTemporaryAccess(raw: String, durationMillis: Long = TEMP_ALLOW_DURATION_MS) {
+        val key = normalizeRaw(raw)
+        if (key.isBlank()) return
+        val expiry = System.currentTimeMillis() + durationMillis
+        synchronized(temporaryAllow) {
+            temporaryAllow[key] = expiry
+        }
     }
 
     private fun persistContacts(list: List<AllowedContact>) {
@@ -133,7 +144,24 @@ class AllowedContactsRepository private constructor(context: Context) {
             }
         }.getOrElse { emptyList() }
 
+    private fun normalizeRaw(raw: String): String {
+        val digits = normalizePhone(raw)
+        if (digits.isNotBlank()) return digits
+        return normalizeName(raw)
+    }
+
+    private fun cleanupTemporary(now: Long) {
+        synchronized(temporaryAllow) {
+            val iterator = temporaryAllow.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (entry.value <= now) iterator.remove()
+            }
+        }
+    }
+
     companion object {
+        private val TEMP_ALLOW_DURATION_MS = TimeUnit.MINUTES.toMillis(10)
         @Volatile
         private var INSTANCE: AllowedContactsRepository? = null
 

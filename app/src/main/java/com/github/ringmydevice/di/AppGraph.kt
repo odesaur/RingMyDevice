@@ -3,6 +3,7 @@ package com.github.ringmydevice.di
 import android.content.Context
 import com.github.ringmydevice.data.repo.AllowedContactsRepository
 import com.github.ringmydevice.data.repo.CommandRepository
+import com.github.ringmydevice.data.repo.SettingsRepository
 
 /**
  * Super simple service locator for Show & Tell 1.
@@ -23,4 +24,5 @@ object AppGraph {
     // IMPORTANT: single instance so writers/readers see the same logs
     val commandRepo: CommandRepository by lazy { CommandRepository.fake() }
     val allowedRepo: AllowedContactsRepository by lazy { AllowedContactsRepository.getInstance(requireContext()) }
+    val settingsRepo: SettingsRepository by lazy { SettingsRepository.getInstance(requireContext()) }
 }
