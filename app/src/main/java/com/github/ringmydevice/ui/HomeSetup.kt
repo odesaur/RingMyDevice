@@ -22,14 +22,16 @@ fun HomeSetup(themeSettings: ThemeSettingsState) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = {
-                Text(
-                    text = "Ring My Device",
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            })
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Ring My Device",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            )
         },
         bottomBar = {
             NavigationBar {

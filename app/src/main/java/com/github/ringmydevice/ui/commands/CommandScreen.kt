@@ -7,11 +7,19 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Bluetooth
@@ -21,35 +29,42 @@ import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VolumeUp
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.github.ringmydevice.permissions.*
-import com.github.ringmydevice.permissions.Permissions.openAppDetails
-import com.github.ringmydevice.ui.model.CommandItem
-import com.github.ringmydevice.maps.openInOpenStreetMap
-import com.github.ringmydevice.permissions.Permissions
 import com.github.ringmydevice.permissions.DoNotDisturbAccessPermission
-import androidx.lifecycle.viewmodel.compose.*
-import androidx.compose.ui.platform.*
+import com.github.ringmydevice.permissions.Permissions
+import com.github.ringmydevice.permissions.Permissions.openAppDetails
+import com.github.ringmydevice.permissions.rememberPermissionRequester
+import com.github.ringmydevice.ui.model.CommandItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommandScreen(modifier: Modifier = Modifier) {
-    val ctx = LocalContext.current
-    val vm = viewModel<com.github.ringmydevice.viewmodel.CommandViewModel>()
-    var showLogs by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) { vm.refresh() }
-
-    // Data for the cards
     val commandItems = remember {
         listOf(
             CommandItem(
@@ -76,72 +91,17 @@ fun CommandScreen(modifier: Modifier = Modifier) {
         )
     }
 
-    Box(modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Developer demo tools
-            item {
-                ElevatedCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Developer demo", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(8.dp))
-                        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedButton(onClick = { vm.simulateRing(context = ctx, seconds = 5) }) {
-                                Text("Simulate RING 5s")
-                            }
-                            OutlinedButton(onClick = {
-                                val (lat, lon) = vm.simulateLocate()
-                                openInOpenStreetMap(ctx, lat, lon)     // OSM in browser
-                            }) {
-                                Text("Simulate LOCATE")
-                            }
-                            OutlinedButton(onClick = { showLogs = true }) {
-                                Text("Show logs")
-                            }
-                        }
-                    }
-                }
-            }
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item { RingCommandCardUI() }
+        item { RingerModeCommandCardUI() }
+        item { StatsCommandCardUI() }
 
-            // Promo card
-            item {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Offline phone recovery that works anywhere",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = "Find, lock, wipe, ring, and get photos by SMS or over a mesh. No Google account. No internet required.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-
-            item { RingCommandCardUI() }
-            item { RingerModeCommandCardUI() }
-            item { StatsCommandCardUI() }
-
-            // Command cards
-            items(commandItems) { item ->
-                CommandCard(item)
-            }
-        }
-
-        if (showLogs) {
-            ModalBottomSheet(onDismissRequest = { showLogs = false }) {
-                LogsSheet(vm) { showLogs = false }
-            }
+        items(commandItems) { item ->
+            CommandCard(item)
         }
     }
 }

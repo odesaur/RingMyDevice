@@ -1,5 +1,6 @@
 package com.github.ringmydevice.data.repo
 
+import com.github.ringmydevice.data.model.AllowedContact
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,22 +11,29 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class AllowedContactsRepository private constructor() {
 
-    private val _contacts = MutableStateFlow<List<String>>(emptyList())
-    val contacts: StateFlow<List<String>> = _contacts.asStateFlow()
+    private val _contacts = MutableStateFlow<List<AllowedContact>>(emptyList())
+    val contacts: StateFlow<List<AllowedContact>> = _contacts.asStateFlow()
 
-    /** Normalize to a canonical key: digits only for numbers, lowercase for names. */
-    private fun normalize(s: String): String {
-        val trimmed = s.trim()
-        val digits = trimmed.filter { it.isDigit() }
-        return if (digits.length >= 7) digits else trimmed.lowercase()
+    private fun AllowedContact.sanitized(): AllowedContact =
+        AllowedContact(name = name.trim(), phoneNumber = phoneNumber.trim())
+
+    private fun normalizePhone(phone: String): String = phone.filter { it.isDigit() }
+    private fun normalizeName(name: String): String = name.trim().lowercase()
+
+    private fun normalize(contact: AllowedContact): String {
+        val digits = normalizePhone(contact.phoneNumber)
+        if (digits.isNotBlank()) return digits
+        return normalizeName(contact.name)
     }
 
-    fun add(raw: String): Boolean {
-        val n = normalize(raw)
-        if (n.isBlank()) return false
-        val exists = _contacts.value.any { normalize(it) == n }
+    fun add(contact: AllowedContact): Boolean {
+        val sanitized = contact.sanitized()
+        if (normalizePhone(sanitized.phoneNumber).isBlank()) return false
+        val key = normalize(sanitized)
+        if (key.isBlank()) return false
+        val exists = _contacts.value.any { normalize(it) == key }
         if (exists) return false
-        _contacts.value = _contacts.value + raw.trim()
+        _contacts.value = _contacts.value + sanitized
         return true
     }
 
@@ -35,8 +43,14 @@ class AllowedContactsRepository private constructor() {
     }
 
     fun remove(raw: String) {
-        val n = normalize(raw)
-        _contacts.value = _contacts.value.filterNot { normalize(it) == n }
+        if (raw.isBlank()) return
+        val digits = normalizePhone(raw)
+        if (digits.isNotBlank()) {
+            _contacts.value = _contacts.value.filterNot { normalizePhone(it.phoneNumber) == digits }
+            return
+        }
+        val normalizedName = normalizeName(raw)
+        _contacts.value = _contacts.value.filterNot { normalizeName(it.name) == normalizedName }
     }
 
     fun clear() {
@@ -46,8 +60,13 @@ class AllowedContactsRepository private constructor() {
     /** Check if given sender (e.g., "+1-604…", "Alice") is allowed. */
     fun isAllowed(sender: String?): Boolean {
         if (sender.isNullOrBlank()) return false
-        val n = normalize(sender)
-        return _contacts.value.any { normalize(it) == n }
+        val digits = normalizePhone(sender)
+        if (digits.isNotBlank()) {
+            return _contacts.value.any { normalizePhone(it.phoneNumber) == digits }
+        }
+        val normalizedName = normalizeName(sender)
+        if (normalizedName.isBlank()) return false
+        return _contacts.value.any { normalizeName(it.name) == normalizedName }
     }
 
     companion object {
