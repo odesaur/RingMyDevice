@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import com.github.ringmydevice.ui.ringing.RingingActivity
 
 class RingService : Service() {
     private val chId = "rmd_ring"
@@ -25,11 +26,16 @@ class RingService : Service() {
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         val seconds = intent?.getIntExtra(EXTRA_SECONDS, 5) ?: 5
         val ringtoneUri = intent?.getStringExtra(EXTRA_RINGTONE_URI)
         startForeground(1, buildNotif())
         startTone(seconds, ringtoneUri)
-        return START_NOT_STICKY
+        showRingingActivity()
+        return START_STICKY
     }
 
     private fun startTone(seconds: Int, uriString: String?) {
@@ -68,6 +74,13 @@ class RingService : Service() {
         handler.postDelayed({ stopSelf() }, seconds * 1000L)
     }
 
+    private fun showRingingActivity() {
+        val intent = Intent(this, RingingActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        startActivity(intent)
+    }
+
     private fun buildNotif(): Notification {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= 26) {
@@ -88,6 +101,7 @@ class RingService : Service() {
         tg?.stopTone()
         tg?.release()
         ringtone = null
+        sendBroadcast(Intent(ACTION_RING_ENDED))
         super.onDestroy()
     }
 
@@ -96,5 +110,7 @@ class RingService : Service() {
     companion object {
         const val EXTRA_SECONDS = "seconds"
         const val EXTRA_RINGTONE_URI = "ringtone_uri"
+        const val ACTION_STOP = "com.github.ringmydevice.RING_STOP"
+        const val ACTION_RING_ENDED = "com.github.ringmydevice.RING_ENDED"
     }
 }

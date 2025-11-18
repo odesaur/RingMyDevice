@@ -60,6 +60,20 @@
             android:name=".service.RingService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <service
+            android:name=".service.NotificationCommandListener"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".ui.ringing.RingingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RingMyDevice" />
     </application>
 
 </manifest>
