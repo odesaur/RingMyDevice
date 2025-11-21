@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.github.ringmydevice.data.remote.FmdApi
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val dataStore = application.appDataStore
@@ -143,5 +149,43 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setFmdUploadWhenOnline(enabled: Boolean) {
         viewModelScope.launch { dataStore.edit { it[FMD_UPLOAD_WHEN_ONLINE] = enabled } }
+    }
+
+    // UI state for the connection test
+    var connectionStatus by mutableStateOf<String?>(null)
+        private set
+
+    fun testServerConnection() {
+        val url = fmdServerUrl.value.trim()
+        if (url.isBlank()) {
+            connectionStatus = "Error: URL is empty"
+            return
+        }
+
+        // Ensure URL has protocol
+        val validUrl = if (!url.startsWith("http")) "https://$url/" else url
+        // Retrofit requires URL to end with /
+        val finalUrl = if (!validUrl.endsWith("/")) "$validUrl/" else validUrl
+
+        connectionStatus = "Connecting..."
+
+        viewModelScope.launch {
+            try {
+                val api = Retrofit.Builder()
+                    .baseUrl(finalUrl)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+                    .create(FmdApi::class.java)
+
+                val response = api.checkHealth()
+                if (response.isSuccessful) {
+                    connectionStatus = "Success: Server is online (200 OK)"
+                } else {
+                    connectionStatus = "Failed: Server returned ${response.code()}"
+                }
+            } catch (e: Exception) {
+                connectionStatus = "Error: ${e.localizedMessage}"
+            }
+        }
     }
 }

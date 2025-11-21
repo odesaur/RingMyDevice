@@ -15,6 +15,7 @@ private object SettingsRoutes {
     const val GENERAL = "settings/general"
     const val FMD = "settings/fmd"
     const val APPEARANCE = "settings/appearance"
+    const val OPENCELLID = "settings/opencellid" // Added Route
 }
 
 @Composable
@@ -29,7 +30,7 @@ fun SettingsNavHost(
         startDestination = SettingsRoutes.HOME,
         modifier = modifier
     ) {
-        // Home list (your stubbed items)
+        // Main Settings Menu
         composable(SettingsRoutes.HOME) {
             SettingsScreen(
                 onOpenGeneral = { nav.navigate(SettingsRoutes.GENERAL) },
@@ -38,6 +39,7 @@ fun SettingsNavHost(
                 onOpenLogs = { nav.navigate(SettingsRoutes.LOGS) },
                 onOpenAbout = { nav.navigate(SettingsRoutes.ABOUT) },
                 onOpenAllowedContacts = { nav.navigate(SettingsRoutes.ALLOWED) },
+                onOpenOpenCellId = { nav.navigate(SettingsRoutes.OPENCELLID) } // <--- Wired Up
             )
         }
 
@@ -62,6 +64,10 @@ fun SettingsNavHost(
                 onBack = { nav.popBackStack() },
                 themeSettings = themeSettings
             )
+        }
+        // The new Mock Screen
+        composable(SettingsRoutes.OPENCELLID) {
+            OpenCellIdScreen(onBack = { nav.popBackStack() })
         }
     }
 }

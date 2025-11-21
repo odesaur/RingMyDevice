@@ -2,7 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Runtime permissions you’ll request from UI -->
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />
@@ -10,22 +9,24 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
-    <uses-permission android:name="android.permission.CAMERA"
-        tools:ignore="CoarseFineLocation" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
         tools:ignore="CoarseFineLocation" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
-    <!-- Android 13+ notifications -->
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Android 12+ Bluetooth (for future bluetooth command) -->
+
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- Special access permissions surfaced in UI cards -->
+
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- Foreground service type for playing a tone (Android 14+) -->
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
+
     <application
         android:name=".RmdApp"
         android:allowBackup="true"
@@ -36,6 +37,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.RingMyDevice">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -43,7 +45,6 @@
             android:theme="@style/Theme.RingMyDevice">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -56,11 +57,11 @@
             </intent-filter>
         </receiver>
 
-        <!-- Foreground service used to ring loudly -->
         <service
             android:name=".service.RingService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
         <service
             android:name=".service.NotificationCommandListener"
             android:label="@string/app_name"
@@ -75,6 +76,7 @@
             android:name=".ui.ringing.RingingActivity"
             android:exported="false"
             android:theme="@style/Theme.RingMyDevice" />
+
     </application>
 
 </manifest>
