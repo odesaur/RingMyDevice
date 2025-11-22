@@ -326,7 +326,8 @@ object CommandProcessor {
             @Suppress("DEPRECATION")
             SmsManager.getDefault()
         }
-        val message = CommandHelpResponder.buildHelpMessageFromCommands()
+        val baseCommand = AppGraph.settingsRepo.getRmdCommandKeyword()
+        val message = CommandHelpResponder.buildHelpMessageFromCommands(baseCommand)
         smsManager?.sendTextMessage(sender, null, message, null, null)
         logResult(sender, CommandType.UNKNOWN, success = true, notes = "Sent help response")
     }
