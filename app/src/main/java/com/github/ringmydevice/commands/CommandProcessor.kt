@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import android.telephony.SmsManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.github.ringmydevice.data.model.CommandLog
@@ -16,6 +17,7 @@ import com.github.ringmydevice.data.model.AllowedContact
 import com.github.ringmydevice.data.repo.SettingsRepository
 import com.github.ringmydevice.di.AppGraph
 import com.github.ringmydevice.service.RingService
+import com.github.ringmydevice.permissions.Permissions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -70,6 +72,9 @@ object CommandProcessor {
                     val longRequested = command.contains("long") || args.any { it.equals("long", ignoreCase = true) }
                     dispatchRing(appContext, sender, longRequested, source)
                 }
+                "help" -> {
+                    dispatchHelp(appContext, sender)
+                }
                 else -> logResult(sender, CommandType.UNKNOWN, success = false, notes = "Unknown command: $command")
             }
         }.onFailure {
@@ -120,6 +125,24 @@ object CommandProcessor {
                 )
             )
         }
+    }
+
+    private suspend fun dispatchHelp(context: Context, sender: String?) {
+        if (sender.isNullOrBlank()) return
+        val permission = Permissions.requiredForSmsSend()
+        if (!Permissions.has(context, permission)) {
+            Log.w("RMD", "Cannot send help SMS; SEND_SMS permission missing")
+            return
+        }
+        val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.getSystemService(SmsManager::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            SmsManager.getDefault()
+        }
+        val message = CommandHelpResponder.buildHelpMessageFromCommands()
+        smsManager?.sendTextMessage(sender, null, message, null, null)
+        logResult(sender, CommandType.UNKNOWN, success = true, notes = "Sent help response")
     }
 }
 

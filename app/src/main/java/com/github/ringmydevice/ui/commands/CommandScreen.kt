@@ -2,15 +2,16 @@ package com.github.ringmydevice.ui.commands
 
 import android.Manifest
 import android.app.NotificationManager
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,408 +22,426 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
-import androidx.compose.material.icons.outlined.Bluetooth
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.GpsFixed
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.SignalCellularAlt
+import androidx.compose.material.icons.outlined.ToggleOff
 import androidx.compose.material.icons.outlined.Vibration
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.github.ringmydevice.commands.CommandId
+import com.github.ringmydevice.commands.CommandMetadata
+import com.github.ringmydevice.commands.CommandRegistry
+import com.github.ringmydevice.R
+import com.github.ringmydevice.permissions.AdminReceiver
 import com.github.ringmydevice.permissions.DoNotDisturbAccessPermission
 import com.github.ringmydevice.permissions.Permissions
-import com.github.ringmydevice.permissions.Permissions.openAppDetails
 import com.github.ringmydevice.permissions.rememberPermissionRequester
-import com.github.ringmydevice.ui.model.CommandItem
+import com.github.ringmydevice.viewmodel.SettingsViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommandScreen(modifier: Modifier = Modifier) {
-    val commandItems = remember {
-        listOf(
-            CommandItem(
-                title = "bluetooth [on | off]",
-                description = "Toggle Bluetooth on and off",
-                requiredPermissions = listOf("Connect Bluetooth"),
-                icon = Icons.Outlined.Bluetooth,
-                exampleSyntax = "rmd bluetooth on"
-            ),
-            CommandItem(
-                title = "camera [front | back]",
-                description = "Take a picture",
-                requiredPermissions = listOf("Camera"),
-                icon = Icons.Outlined.CameraAlt,
-                exampleSyntax = "rmd camera front"
-            ),
-            CommandItem(
-                title = "delete <pin> [dryrun]",
-                description = "Factory-reset the device",
-                requiredPermissions = listOf("Device admin"),
-                icon = Icons.Outlined.DeleteForever,
-                exampleSyntax = "rmd delete 1234"
-            )
-        )
-    }
+    val definitions = remember { CommandRegistry.commands }
+    val expandedState = remember { mutableStateMapOf<CommandId, Boolean>() }
+    val settingsViewModel: SettingsViewModel = viewModel()
+    val baseCommand by settingsViewModel.rmdCommand.collectAsState(initial = "rmd")
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item { RingCommandCardUI() }
-        item { RingerModeCommandCardUI() }
-        item { StatsCommandCardUI() }
-
-        items(commandItems) { item ->
-            CommandCard(item)
+        items(definitions, key = { it.id }) { definition ->
+            val permissionState = permissionStateFor(definition.id)
+            CommandListItem(
+                definition = definition,
+                icon = commandIcon(definition.id),
+                permissionState = permissionState,
+                baseCommand = baseCommand,
+                expanded = expandedState[definition.id] ?: false,
+                onToggleInfo = {
+                    val current = expandedState[definition.id] ?: false
+                    expandedState[definition.id] = !current
+                }
+            )
+            HorizontalDivider()
         }
     }
 }
 
+@Composable
+private fun CommandListItem(
+    definition: CommandMetadata,
+    icon: ImageVector,
+    permissionState: CommandPermissionUiState,
+    baseCommand: String,
+    expanded: Boolean,
+    onToggleInfo: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(definition.syntax, style = MaterialTheme.typography.titleMedium)
+                Text(definition.summary, style = MaterialTheme.typography.bodySmall)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (permissionState.allGranted) {
+                    Icon(Icons.Outlined.Check, contentDescription = "Permissions granted")
+                } else {
+                    OutlinedButton(onClick = permissionState.onGrantClick) { Text("Grant") }
+                }
+                IconButton(onClick = onToggleInfo, modifier = Modifier.rotate(if (expanded) 180f else 0f)) {
+                    Icon(Icons.Outlined.Info, contentDescription = "Toggle details")
+                }
+            }
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text(definition.description, style = MaterialTheme.typography.bodyMedium)
+                definition.details.forEach { detail ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(detail, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(Modifier.height(12.dp))
+                PermissionSection("Required permissions", permissionState.requiredEntries)
+                if (permissionState.optionalEntries.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    PermissionSection("Optional permissions", permissionState.optionalEntries)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text("SMS syntax", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                Text("${baseCommand.trim()} ${definition.smsExample}", style = MaterialTheme.typography.bodyMedium)
+
+                if (permissionState.allGranted && permissionState.onRevokeClick != null) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(onClick = permissionState.onRevokeClick) {
+                        Text("Revoke")
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
-private fun CommandCard(item: CommandItem) {
-    val ctx = LocalContext.current
-    val requestPermission = rememberPermissionRequester {
-        android.util.Log.d("RMD", "Permission result: $it")
+private fun PermissionSection(title: String, entries: List<PermissionEntry>) {
+    if (entries.isEmpty()) return
+    Text(title, style = MaterialTheme.typography.labelLarge)
+    Spacer(Modifier.height(4.dp))
+    entries.forEach { entry ->
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+            if (entry.granted) {
+                Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+            } else {
+                Icon(Icons.Outlined.ToggleOff, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+            }
+            Text(entry.label, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun permissionStateFor(id: CommandId): CommandPermissionUiState =
+    when (id) {
+        CommandId.NODISTURB -> rememberNodisturbPermissionState()
+        CommandId.RING -> rememberRingPermissionState()
+        CommandId.RINGER_MODE -> rememberRingerModePermissionState()
+        CommandId.STATS -> rememberStatsPermissionState()
+        CommandId.GPS -> rememberSecureSettingsPermissionState()
+        CommandId.LOCATE -> rememberLocatePermissionState()
+        CommandId.LOCK -> rememberLockPermissionState()
+        CommandId.HELP -> CommandPermissionUiState(requiredEntries = emptyList(), onGrantClick = {})
     }
 
-    // State: whether permission is currently granted
-    val permissionGranted = remember {
-        mutableStateOf(
+@Composable
+private fun rememberNodisturbPermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var dndGranted by remember { mutableStateOf(Permissions.hasDndAccess(context)) }
+
+    val refresh = { dndGranted = Permissions.hasDndAccess(context) }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Do Not Disturb access", dndGranted))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        onGrantClick = {
+            if (dndGranted) {
+                Permissions.openDndAccessSettings(context)
+            } else {
+                DoNotDisturbAccessPermission.request(context)
+            }
+        },
+        onRevokeClick = { Permissions.openDndAccessSettings(context) }
+    )
+}
+
+@Composable
+private fun rememberRingPermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var dndGranted by remember { mutableStateOf(Permissions.hasDndAccess(context)) }
+    var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+
+    val refresh = {
+        dndGranted = Permissions.hasDndAccess(context)
+        overlayGranted = Settings.canDrawOverlays(context)
+    }
+
+    LaunchedEffect(Unit) { refresh() }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(
+        PermissionEntry("Do Not Disturb access", dndGranted),
+        PermissionEntry("Display over other apps", overlayGranted)
+    )
+    val onGrant = {
+        when {
+            !dndGranted -> DoNotDisturbAccessPermission.request(context)
+            !overlayGranted -> openOverlaySettings(context)
+        }
+    }
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        onGrantClick = onGrant,
+        onRevokeClick = { Permissions.openDndAccessSettings(context) }
+    )
+}
+
+@Composable
+private fun rememberRingerModePermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var dndGranted by remember { mutableStateOf(Permissions.hasDndAccess(context)) }
+
+    val refresh = { dndGranted = Permissions.hasDndAccess(context) }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Do Not Disturb access", dndGranted))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        onGrantClick = {
+            if (dndGranted) {
+                Permissions.openDndAccessSettings(context)
+            } else {
+                DoNotDisturbAccessPermission.request(context)
+            }
+        },
+        onRevokeClick = { Permissions.openDndAccessSettings(context) }
+    )
+}
+
+@Composable
+private fun rememberStatsPermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val requestPermission = rememberPermissionRequester { }
+    var granted by remember { mutableStateOf(locationGranted(context)) }
+
+    val refresh = { granted = locationGranted(context) }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Location", granted))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        onGrantClick = {
+            if (granted) {
+                openLocationSettings(context)
+            } else {
+                requestPermission(Permissions.requiredForFineLocation())
+                refresh()
+            }
+        },
+        onRevokeClick = { openLocationSettings(context) }
+    )
+}
+
+@Composable
+private fun rememberSecureSettingsPermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var granted by remember { mutableStateOf(Settings.System.canWrite(context)) }
+
+    val refresh = { granted = Settings.System.canWrite(context) }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Write to secure settings", granted))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        onGrantClick = { openWriteSettings(context) },
+        onRevokeClick = { openWriteSettings(context) }
+    )
+}
+
+@Composable
+private fun rememberLocatePermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val requestPermission = rememberPermissionRequester { }
+    var granted by remember { mutableStateOf(locationGranted(context)) }
+    var optionalGranted by remember { mutableStateOf(Settings.System.canWrite(context)) }
+
+    val refresh = {
+        granted = locationGranted(context)
+        optionalGranted = Settings.System.canWrite(context)
+    }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Location", granted))
+    val optional = listOf(PermissionEntry("Write to secure settings", optionalGranted))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        optionalEntries = optional,
+        onGrantClick = {
+            if (granted) {
+                openLocationSettings(context)
+            } else {
+                requestPermission(Permissions.requiredForFineLocation())
+                refresh()
+            }
+        },
+        onRevokeClick = { openLocationSettings(context) }
+    )
+}
+
+@Composable
+private fun rememberLockPermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var adminGranted by remember { mutableStateOf(isDeviceAdminEnabled(context)) }
+    var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+
+    val refresh = {
+        adminGranted = isDeviceAdminEnabled(context)
+        overlayGranted = Settings.canDrawOverlays(context)
+    }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Device admin", adminGranted))
+    val optional = listOf(PermissionEntry("Display over other apps", overlayGranted))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        optionalEntries = optional,
+        onGrantClick = {
             when {
-                item.title.startsWith("bluetooth") ->
-                    Permissions.has(ctx, Permissions.requiredForBluetoothConnect())
-                item.title.startsWith("camera") ->
-                    Permissions.has(ctx, Permissions.requiredForCamera())
-                else -> false
+                !adminGranted -> requestDeviceAdmin(context)
+                !overlayGranted -> openOverlaySettings(context)
+                else -> openDeviceAdminManagement(context)
             }
-        )
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(item.icon, contentDescription = null)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(item.description, style = MaterialTheme.typography.bodyMedium)
-                }
-                IconButton(onClick = {}) {
-                    Icon(Icons.AutoMirrored.Outlined.ListAlt, contentDescription = "Details")
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-            Text("Required permissions", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            Text(item.requiredPermissions.joinToString(), style = MaterialTheme.typography.bodyMedium)
-
-            Spacer(Modifier.height(12.dp))
-            Text("SMS syntax", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            Text(item.exampleSyntax, style = MaterialTheme.typography.bodyMedium)
-
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = {
-                    when {
-                        item.title.startsWith("bluetooth") -> {
-                            val p = Permissions.requiredForBluetoothConnect()
-                            if (permissionGranted.value) {
-                                // "Revoke" path — open app settings so user can revoke manually
-                                openAppDetails(ctx)
-                            } else {
-                                requestPermission(p)
-                            }
-                            permissionGranted.value = Permissions.has(ctx, p)
-                        }
-
-                        item.title.startsWith("camera") -> {
-                            val p = Permissions.requiredForCamera()
-                            if (permissionGranted.value) {
-                                openAppDetails(ctx)
-                            } else {
-                                requestPermission(p)
-                            }
-                            permissionGranted.value = Permissions.has(ctx, p)
-                        }
-
-                        item.title.startsWith("delete") -> {
-                            DoNotDisturbAccessPermission.request(ctx)
-                        }
-                    }
-                }) {
-                    Text(if (permissionGranted.value) "Revoke" else "Grant")
-                }
-            }
-        }
-    }
+        },
+        onRevokeClick = { openDeviceAdminManagement(context) }
+    )
 }
 
-@Composable
-private fun RingCommandCardUI() {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var dndGranted by remember { mutableStateOf(false) }
-    var overlayGranted by remember { mutableStateOf(false) }
+private data class PermissionEntry(
+    val label: String,
+    val granted: Boolean
+)
 
-    val refreshPermissions = remember(context) {
-        {
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            dndGranted = manager.isNotificationPolicyAccessGranted
-            overlayGranted = Settings.canDrawOverlays(context)
-        }
-    }
-
-    LaunchedEffect(Unit) { refreshPermissions() }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                refreshPermissions()
-            }
-        }
-        val lifecycle = lifecycleOwner.lifecycle
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-
-    val allGranted = dndGranted && overlayGranted
-    var showRevokeMenu by remember { mutableStateOf(false) }
-    val buttonLabel = if (allGranted) "Revoke" else "Grant"
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.AutoMirrored.Outlined.VolumeUp, contentDescription = null)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("ring [long]", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Make the device ring", style = MaterialTheme.typography.bodyMedium)
-                }
-                IconButton(onClick = {}) {
-                    Icon(Icons.AutoMirrored.Outlined.ListAlt, contentDescription = "Details")
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Text("Required permissions", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            ListItem(
-                headlineContent = { Text("Do Not Disturb access") },
-                trailingContent = { if (dndGranted) Icon(Icons.Outlined.Check, null) }
-            )
-            ListItem(
-                headlineContent = { Text("Display over other apps") },
-                trailingContent = { if (overlayGranted) Icon(Icons.Outlined.Check, null) }
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("SMS syntax", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            Text("rmd ring long", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Box {
-                    OutlinedButton(onClick = {
-                        when {
-                            !dndGranted -> DoNotDisturbAccessPermission.request(context)
-                            !overlayGranted -> openOverlaySettings(context)
-                            else -> showRevokeMenu = true
-                        }
-                    }) {
-                        Text(buttonLabel)
-                    }
-                    DropdownMenu(expanded = showRevokeMenu, onDismissRequest = { showRevokeMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Open Do Not Disturb settings") },
-                            onClick = {
-                                showRevokeMenu = false
-                                openDoNotDisturbSettings(context)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Open overlay settings") },
-                            onClick = {
-                                showRevokeMenu = false
-                                openOverlaySettings(context)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
+private data class CommandPermissionUiState(
+    val requiredEntries: List<PermissionEntry>,
+    val optionalEntries: List<PermissionEntry> = emptyList(),
+    val onGrantClick: () -> Unit,
+    val onRevokeClick: (() -> Unit)? = null
+) {
+    val allGranted: Boolean = requiredEntries.all { it.granted }
 }
 
-@Composable
-private fun RingerModeCommandCardUI() {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var dndGranted by remember { mutableStateOf(false) }
-
-    val refreshPermission = remember(context) {
-        {
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            dndGranted = manager.isNotificationPolicyAccessGranted
-        }
+private fun commandIcon(id: CommandId): ImageVector =
+    when (id) {
+        CommandId.NODISTURB -> Icons.Outlined.ToggleOff
+        CommandId.RING -> Icons.AutoMirrored.Outlined.VolumeUp
+        CommandId.RINGER_MODE -> Icons.Outlined.Vibration
+        CommandId.STATS -> Icons.Outlined.SignalCellularAlt
+        CommandId.GPS -> Icons.Outlined.GpsFixed
+        CommandId.LOCATE -> Icons.Outlined.Public
+        CommandId.LOCK -> Icons.Outlined.Lock
+        CommandId.HELP -> Icons.Outlined.Info
     }
 
-    LaunchedEffect(Unit) { refreshPermission() }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                refreshPermission()
-            }
-        }
-        val lifecycle = lifecycleOwner.lifecycle
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-
-    val allGranted = dndGranted
-    val onClick = if (dndGranted) { { openDoNotDisturbSettings(context) } } else { { DoNotDisturbAccessPermission.request(context) } }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Vibration, contentDescription = null)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("ringermode [normal | vibrate | silent]", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Change the ringer mode", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Note that \"silent\" also enables Do Not Disturb mode. This is expected behaviour and is defined by Android.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                IconButton(onClick = {}) {
-                    Icon(Icons.AutoMirrored.Outlined.ListAlt, contentDescription = "Details")
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Text("Required permissions", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            ListItem(
-                headlineContent = { Text("Do Not Disturb access") },
-                trailingContent = { if (dndGranted) Icon(Icons.Outlined.Check, null) }
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("SMS syntax", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            Text("rmd ringermode vibrate", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = onClick) { Text(if (allGranted) "Revoke" else "Grant") }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatsCommandCardUI() {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var locationGranted by remember { mutableStateOf(false) }
-
-    val refreshPermission = remember(context) {
-        {
-            val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            locationGranted = fine || coarse
-        }
-    }
-
-    LaunchedEffect(Unit) { refreshPermission() }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                refreshPermission()
-            }
-        }
-        val lifecycle = lifecycleOwner.lifecycle
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-
-    val onClick = if (locationGranted) { { openAppDetails(context) } } else { { openAppDetails(context) } } // keep old revoke path
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.SignalCellularAlt, contentDescription = null)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("stats", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Get network statistics", style = MaterialTheme.typography.bodyMedium)
-                }
-                IconButton(onClick = {}) {
-                    Icon(Icons.AutoMirrored.Outlined.ListAlt, contentDescription = "Details")
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Text("Required permissions", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            ListItem(
-                headlineContent = { Text("Location") },
-                trailingContent = { if (locationGranted) Icon(Icons.Outlined.Check, null) }
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("SMS syntax", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(4.dp))
-            Text("rmd stats", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = onClick) { Text(if (locationGranted) "Revoke" else "Grant") }
-            }
-        }
-    }
-}
-
-private fun openDoNotDisturbSettings(context: Context) {
-    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+private fun locationGranted(context: Context): Boolean {
+    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    return fine || coarse
 }
 
 private fun openOverlaySettings(context: Context) {
@@ -430,6 +449,54 @@ private fun openOverlaySettings(context: Context) {
         Intent(
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
             Uri.parse("package:${context.packageName}")
-        )
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     )
+}
+
+private fun openLocationSettings(context: Context) {
+    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
+
+private fun openWriteSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:${context.packageName}"))
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    context.startActivity(intent)
+}
+
+private fun requestDeviceAdmin(context: Context) {
+    if (!openDeviceAdminSettingsList(context)) {
+        val component = ComponentName(context, AdminReceiver::class.java)
+        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+            putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, component)
+            putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, context.getString(R.string.device_admin_explanation))
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+}
+
+private fun openDeviceAdminManagement(context: Context) {
+    if (!openDeviceAdminSettingsList(context)) {
+        val intent = Intent(Settings.ACTION_SECURITY_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+}
+
+private fun isDeviceAdminEnabled(context: Context): Boolean {
+    val manager = context.getSystemService(DevicePolicyManager::class.java)
+    val component = ComponentName(context, AdminReceiver::class.java)
+    return manager?.isAdminActive(component) == true
+}
+
+private fun openDeviceAdminSettingsList(context: Context): Boolean {
+    val intent = Intent().apply {
+        setClassName("com.android.settings", "com.android.settings.Settings\$DeviceAdminSettingsActivity")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    return runCatching {
+        context.startActivity(intent)
+        true
+    }.getOrElse { false }
 }
