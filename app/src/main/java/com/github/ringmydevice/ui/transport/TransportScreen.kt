@@ -70,9 +70,9 @@ import com.github.ringmydevice.ui.settings.FmdServerScreen
 import com.github.ringmydevice.viewmodel.AllowedContactsViewModel
 import com.github.ringmydevice.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
-import android.telephony.SmsManager
 import android.widget.Toast
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.github.ringmydevice.sms.SmsFeedbackSender
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -243,8 +243,12 @@ fun TransportScreen(modifier: Modifier = Modifier) {
                         allowedContacts.forEach { contact ->
                             Button(
                                 onClick = {
-                                    val success = sendHelpSms(context, contact, baseCommand)
-                                    val message = if (success) "Sent help to ${contact.displayName()}" else "Unable to send SMS"
+                                    val sendResult = sendHelpSms(context, contact, baseCommand)
+                                    val message = when (sendResult) {
+                                        SmsFeedbackSender.Result.Sent -> "Sent help to ${contact.displayName()}"
+                                        SmsFeedbackSender.Result.PermissionMissing -> "Grant SMS permission to send help"
+                                        SmsFeedbackSender.Result.Failed -> "Unable to send SMS"
+                                    }
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                     showSendHelpDialog = false
                                 }
@@ -420,21 +424,14 @@ private fun PermissionRow(label: String, granted: Boolean) {
     )
 }
 
-private fun sendHelpSms(context: Context, contact: AllowedContact, baseCommand: String): Boolean {
-    val permission = Permissions.requiredForSmsSend()
-    if (!Permissions.has(context, permission)) {
-        Toast.makeText(context, "Grant SMS permission first", Toast.LENGTH_SHORT).show()
-        return false
-    }
-    val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        context.getSystemService(SmsManager::class.java)
-    } else {
-        @Suppress("DEPRECATION")
-        SmsManager.getDefault()
-    }
+private fun sendHelpSms(context: Context, contact: AllowedContact, baseCommand: String): SmsFeedbackSender.Result {
     val message = CommandHelpResponder.buildHelpMessageFromCommands(baseCommand)
-    smsManager?.sendTextMessage(contact.phoneNumber, null, message, null, null)
-    return smsManager != null
+    return SmsFeedbackSender.send(
+        context = context,
+        destinationPhoneNumber = contact.phoneNumber,
+        messageBody = message,
+        requestPermissionIfNeeded = true
+    )
 }
 
 private fun AllowedContact.displayName(): String =

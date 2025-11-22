@@ -25,6 +25,10 @@ class SettingsRepository private constructor(context: Context) {
         dataStore.data.first()[SettingsViewModel.RING_ENABLED] ?: true
     }
 
+    suspend fun isSmsFeedbackEnabled(): Boolean = withContext(Dispatchers.IO) {
+        dataStore.data.first()[SettingsViewModel.SEND_SMS_FEEDBACK] ?: true
+    }
+
     suspend fun isPinEnabled(): Boolean = withContext(Dispatchers.IO) {
         dataStore.data.first()[SettingsViewModel.RMD_PIN_ENABLED] ?: false
     }
@@ -39,6 +43,7 @@ class SettingsRepository private constructor(context: Context) {
             rmdCommand = prefs[SettingsViewModel.RMD_COMMAND] ?: "rmd",
             rmdRingtone = prefs[SettingsViewModel.RMD_RINGTONE] ?: "",
             rmdLockMessage = prefs[SettingsViewModel.RMD_LOCK_MESSAGE] ?: "",
+            sendSmsFeedback = prefs[SettingsViewModel.SEND_SMS_FEEDBACK] ?: true,
             themePreference = prefs[SettingsViewModel.THEME_PREFERENCE] ?: ThemePreference.SYSTEM.name,
             useDynamicColor = prefs[SettingsViewModel.USE_DYNAMIC_COLOR] ?: true
         )
@@ -50,6 +55,7 @@ class SettingsRepository private constructor(context: Context) {
                 prefs[SettingsViewModel.RMD_COMMAND] = snapshot.rmdCommand
                 prefs[SettingsViewModel.RMD_RINGTONE] = snapshot.rmdRingtone
                 prefs[SettingsViewModel.RMD_LOCK_MESSAGE] = snapshot.rmdLockMessage
+                prefs[SettingsViewModel.SEND_SMS_FEEDBACK] = snapshot.sendSmsFeedback
                 prefs[SettingsViewModel.THEME_PREFERENCE] = snapshot.themePreference
                 prefs[SettingsViewModel.USE_DYNAMIC_COLOR] = snapshot.useDynamicColor
             }
@@ -75,6 +81,7 @@ data class SettingsSnapshot(
     val rmdCommand: String,
     val rmdRingtone: String,
     val rmdLockMessage: String,
+    val sendSmsFeedback: Boolean,
     val themePreference: String,
     val useDynamicColor: Boolean
 ) {
@@ -82,6 +89,7 @@ data class SettingsSnapshot(
         put("rmdCommand", rmdCommand)
         put("rmdRingtone", rmdRingtone)
         put("rmdLockMessage", rmdLockMessage)
+        put("sendSmsFeedback", sendSmsFeedback)
         put("themePreference", themePreference)
         put("useDynamicColor", useDynamicColor)
     }
@@ -91,6 +99,7 @@ data class SettingsSnapshot(
             rmdCommand = json.optString("rmdCommand", "rmd"),
             rmdRingtone = json.optString("rmdRingtone", ""),
             rmdLockMessage = json.optString("rmdLockMessage", ""),
+            sendSmsFeedback = json.optBoolean("sendSmsFeedback", true),
             themePreference = json.optString("themePreference", ThemePreference.SYSTEM.name),
             useDynamicColor = json.optBoolean("useDynamicColor", true)
         )
