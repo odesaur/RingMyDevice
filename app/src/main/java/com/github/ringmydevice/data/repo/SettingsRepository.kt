@@ -1,11 +1,14 @@
 package com.github.ringmydevice.data.repo
 
 import android.content.Context
+import androidx.datastore.preferences.core.edit
 import com.github.ringmydevice.data.datastore.appDataStore
+import com.github.ringmydevice.ui.theme.ThemePreference
 import com.github.ringmydevice.viewmodel.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 class SettingsRepository private constructor(context: Context) {
     private val dataStore = context.appDataStore
@@ -30,6 +33,29 @@ class SettingsRepository private constructor(context: Context) {
         dataStore.data.first()[SettingsViewModel.RMD_PIN] ?: ""
     }
 
+    suspend fun readSnapshot(): SettingsSnapshot = withContext(Dispatchers.IO) {
+        val prefs = dataStore.data.first()
+        SettingsSnapshot(
+            rmdCommand = prefs[SettingsViewModel.RMD_COMMAND] ?: "rmd",
+            rmdRingtone = prefs[SettingsViewModel.RMD_RINGTONE] ?: "",
+            rmdLockMessage = prefs[SettingsViewModel.RMD_LOCK_MESSAGE] ?: "",
+            themePreference = prefs[SettingsViewModel.THEME_PREFERENCE] ?: ThemePreference.SYSTEM.name,
+            useDynamicColor = prefs[SettingsViewModel.USE_DYNAMIC_COLOR] ?: true
+        )
+    }
+
+    suspend fun applySnapshot(snapshot: SettingsSnapshot) {
+        withContext(Dispatchers.IO) {
+            dataStore.edit { prefs ->
+                prefs[SettingsViewModel.RMD_COMMAND] = snapshot.rmdCommand
+                prefs[SettingsViewModel.RMD_RINGTONE] = snapshot.rmdRingtone
+                prefs[SettingsViewModel.RMD_LOCK_MESSAGE] = snapshot.rmdLockMessage
+                prefs[SettingsViewModel.THEME_PREFERENCE] = snapshot.themePreference
+                prefs[SettingsViewModel.USE_DYNAMIC_COLOR] = snapshot.useDynamicColor
+            }
+        }
+    }
+
     companion object {
         const val DEFAULT_RING_SECONDS = 15
         const val LONG_RING_SECONDS = 30
@@ -42,5 +68,31 @@ class SettingsRepository private constructor(context: Context) {
                 INSTANCE ?: SettingsRepository(context.applicationContext).also { INSTANCE = it }
             }
         }
+    }
+}
+
+data class SettingsSnapshot(
+    val rmdCommand: String,
+    val rmdRingtone: String,
+    val rmdLockMessage: String,
+    val themePreference: String,
+    val useDynamicColor: Boolean
+) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("rmdCommand", rmdCommand)
+        put("rmdRingtone", rmdRingtone)
+        put("rmdLockMessage", rmdLockMessage)
+        put("themePreference", themePreference)
+        put("useDynamicColor", useDynamicColor)
+    }
+
+    companion object {
+        fun fromJson(json: JSONObject): SettingsSnapshot = SettingsSnapshot(
+            rmdCommand = json.optString("rmdCommand", "rmd"),
+            rmdRingtone = json.optString("rmdRingtone", ""),
+            rmdLockMessage = json.optString("rmdLockMessage", ""),
+            themePreference = json.optString("themePreference", ThemePreference.SYSTEM.name),
+            useDynamicColor = json.optBoolean("useDynamicColor", true)
+        )
     }
 }
