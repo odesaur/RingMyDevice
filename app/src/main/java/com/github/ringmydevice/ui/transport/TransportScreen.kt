@@ -47,6 +47,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +64,7 @@ import com.github.ringmydevice.commands.CommandSource
 import com.github.ringmydevice.ui.settings.AllowedContactsScreen
 import com.github.ringmydevice.ui.settings.FmdServerScreen
 import kotlinx.coroutines.launch
+import com.github.ringmydevice.permissions.Permissions
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,14 +78,18 @@ fun TransportScreen(modifier: Modifier = Modifier) {
     var showInAppDialog by remember { mutableStateOf(false) }
     var showMeshtasticDialog by remember { mutableStateOf(false) }
 
-    var smsPermissionGranted by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECEIVE_SMS)) }
+    var smsReceivePermissionGranted by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECEIVE_SMS)) }
+    var smsSendPermissionGranted by remember { mutableStateOf(hasPermission(context, Permissions.requiredForSmsSend())) }
     var postNotificationsGranted by remember { mutableStateOf(hasPostNotificationPermission(context)) }
     var notificationAccessGranted by remember { mutableStateOf(hasNotificationListenerAccess(context)) }
     var bluetoothPermissionGranted by remember { mutableStateOf(hasPermission(context, Manifest.permission.BLUETOOTH_CONNECT)) }
     var locationPermissionGranted by remember { mutableStateOf(hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)) }
 
     val smsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        smsPermissionGranted = granted
+        smsReceivePermissionGranted = granted
+    }
+    val smsSendPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        smsSendPermissionGranted = granted
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         postNotificationsGranted = granted || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
@@ -99,10 +105,12 @@ fun TransportScreen(modifier: Modifier = Modifier) {
         locationPermissionGranted = granted
     }
 
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                smsPermissionGranted = hasPermission(context, Manifest.permission.RECEIVE_SMS)
+                smsReceivePermissionGranted = hasPermission(context, Manifest.permission.RECEIVE_SMS)
+                smsSendPermissionGranted = hasPermission(context, Permissions.requiredForSmsSend())
                 postNotificationsGranted = hasPostNotificationPermission(context)
                 notificationAccessGranted = hasNotificationListenerAccess(context)
                 bluetoothPermissionGranted = hasPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
@@ -120,8 +128,10 @@ fun TransportScreen(modifier: Modifier = Modifier) {
     ) {
         item {
             SmsTransportCard(
-                hasPermission = smsPermissionGranted,
-                onRequestPermission = { smsPermissionLauncher.launch(Manifest.permission.RECEIVE_SMS) },
+                hasReceivePermission = smsReceivePermissionGranted,
+                hasSendPermission = smsSendPermissionGranted,
+                onRequestReceivePermission = { smsPermissionLauncher.launch(Manifest.permission.RECEIVE_SMS) },
+                onRequestSendPermission = { smsSendPermissionLauncher.launch(Permissions.requiredForSmsSend()) },
                 onManageAllowedContacts = { showAllowedContacts = true }
             )
         }
@@ -203,8 +213,10 @@ fun TransportScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SmsTransportCard(
-    hasPermission: Boolean,
-    onRequestPermission: () -> Unit,
+    hasReceivePermission: Boolean,
+    hasSendPermission: Boolean,
+    onRequestReceivePermission: () -> Unit,
+    onRequestSendPermission: () -> Unit,
     onManageAllowedContacts: () -> Unit
 ) {
     TransportCard(
@@ -213,14 +225,26 @@ private fun SmsTransportCard(
         description = "Send commands to your device over SMS. Only numbers in the allowlist can control RMD. " +
             "Unlisted numbers must include the PIN, e.g. \"fmd 1234 help\". Numbers that authenticate with the PIN are allowed for 10 minutes.",
         content = {
-            PermissionRow(label = "Required permissions: SMS", granted = hasPermission)
+            PermissionRow(
+                label = when {
+                    hasReceivePermission && hasSendPermission -> "SMS permissions granted"
+                    hasReceivePermission -> "Receiving enabled, sending missing"
+                    hasSendPermission -> "Sending enabled, receiving missing"
+                    else -> "No SMS permissions"
+                },
+                granted = hasReceivePermission && hasSendPermission
+            )
             Spacer(Modifier.height(12.dp))
             Button(onClick = onManageAllowedContacts) {
                 Text("Allowed contacts")
             }
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onRequestPermission, enabled = !hasPermission) {
-                Text(if (hasPermission) "Permission granted" else "Grant SMS permission")
+            OutlinedButton(onClick = onRequestReceivePermission, enabled = !hasReceivePermission) {
+                Text(if (hasReceivePermission) "Receive granted" else "Grant receive permission")
+            }
+            Spacer(Modifier.height(4.dp))
+            OutlinedButton(onClick = onRequestSendPermission, enabled = !hasSendPermission) {
+                Text(if (hasSendPermission) "Send granted" else "Grant send permission")
             }
         }
     )
@@ -324,24 +348,30 @@ private fun TransportCard(
     description: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(icon, contentDescription = null)
                 Spacer(Modifier.width(12.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(description, style = MaterialTheme.typography.bodyMedium)
+                    Text(description, style = MaterialTheme.typography.bodyMedium, maxLines = if (expanded) Int.MAX_VALUE else 2)
+                }
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Hide" else "Info")
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(12.dp))
-            content()
+            if (expanded) {
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(12.dp))
+                content()
+            }
         }
     }
 }
