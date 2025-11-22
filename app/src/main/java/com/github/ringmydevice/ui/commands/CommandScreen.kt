@@ -180,7 +180,7 @@ private fun permissionStateFor(id: CommandId): CommandPermissionUiState =
         CommandId.GPS -> rememberSecureSettingsPermissionState()
         CommandId.LOCATE -> rememberLocatePermissionState()
         CommandId.LOCK -> rememberLockPermissionState()
-        CommandId.HELP -> CommandPermissionUiState(requiredEntries = emptyList(), onGrantClick = {})
+        CommandId.HELP, CommandId.UNKNOWN -> CommandPermissionUiState(requiredEntries = emptyList(), onGrantClick = {})
     }
 
 @Composable
@@ -435,7 +435,7 @@ private fun commandIcon(id: CommandId): ImageVector =
         CommandId.GPS -> Icons.Outlined.GpsFixed
         CommandId.LOCATE -> Icons.Outlined.Public
         CommandId.LOCK -> Icons.Outlined.Lock
-        CommandId.HELP -> Icons.Outlined.Info
+        CommandId.HELP, CommandId.UNKNOWN -> Icons.Outlined.Info
     }
 
 private fun locationGranted(context: Context): Boolean {

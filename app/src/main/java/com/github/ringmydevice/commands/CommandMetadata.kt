@@ -8,7 +8,8 @@ enum class CommandId {
     GPS,
     LOCATE,
     LOCK,
-    HELP
+    HELP,
+    UNKNOWN
 }
 
 data class CommandMetadata(
@@ -27,7 +28,7 @@ object CommandRegistry {
         CommandMetadata(
             id = CommandId.NODISTURB,
             syntax = "nodisturb [on | off]",
-            summary = "Toggle Do Not Disturb",
+            summary = "Toggle Do Not Disturb on and off",
             description = "Turn Do Not Disturb on or off remotely.",
             requiredPermissions = listOf("Do Not Disturb access"),
             smsExample = "nodisturb on"
@@ -60,7 +61,7 @@ object CommandRegistry {
         CommandMetadata(
             id = CommandId.GPS,
             syntax = "gps [on | off]",
-            summary = "Toggle GPS",
+            summary = "Toggle GPS on and off",
             description = "Turn GPS on or off remotely.",
             requiredPermissions = listOf("Write to secure settings"),
             smsExample = "gps on"

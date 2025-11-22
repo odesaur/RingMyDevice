@@ -7,7 +7,7 @@ object CommandHelpResponder {
             builder.append(baseCommand.trim())
                 .append(' ')
                 .append(command.syntax)
-                .append(" – ")
+                .append(" - ")
                 .append(command.summary)
                 .append('\n')
         }
