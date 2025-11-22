@@ -6,5 +6,7 @@ data class CommandLog(
     val timestamp: Long = System.currentTimeMillis(),
     val from: String? = null,
     val success: Boolean = true,
-    val notes: String? = null
+    val notes: String? = null,
+    val lat: Double? = null,
+    val lon: Double? = null
 )

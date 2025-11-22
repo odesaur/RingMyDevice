@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.github.ringmydevice.viewmodel.CommandViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.github.ringmydevice.maps.openInOpenStreetMap
 import java.text.SimpleDateFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +44,7 @@ fun LogsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(logs) { log ->
+                val context = LocalContext.current
                 ElevatedCard {
                     Column(Modifier.padding(12.dp)) {
                         Text("${log.type}", style = MaterialTheme.typography.titleSmall)
@@ -52,6 +54,19 @@ fun LogsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                                 .format(java.util.Date(log.timestamp)),
                             style = MaterialTheme.typography.labelSmall
                         )
+                        // Possibly only for demo?
+                        if (log.lat != null && log.lon != null) {
+                            Spacer(Modifier.height(8.dp))
+
+                            Button(
+                                onClick = {
+                                    openInOpenStreetMap(context, log.lat, log.lon)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("View on Map")
+                            }
+                        }
                     }
                 }
             }
