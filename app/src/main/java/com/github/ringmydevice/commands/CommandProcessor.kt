@@ -137,6 +137,7 @@ object CommandProcessor {
         val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             context.getSystemService(SmsManager::class.java)
         } else {
+            @Suppress("DEPRECATION")
             SmsManager.getDefault()
         }
         val message = CommandHelpResponder.buildHelpMessageFromCommands()

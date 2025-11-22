@@ -2,6 +2,8 @@ package com.github.ringmydevice.ui.commands
 
 import android.Manifest
 import android.app.NotificationManager
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -58,6 +60,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.github.ringmydevice.commands.CommandId
 import com.github.ringmydevice.commands.CommandMetadata
 import com.github.ringmydevice.commands.CommandRegistry
+import com.github.ringmydevice.R
+import com.github.ringmydevice.permissions.AdminReceiver
 import com.github.ringmydevice.permissions.DoNotDisturbAccessPermission
 import com.github.ringmydevice.permissions.Permissions
 import com.github.ringmydevice.permissions.rememberPermissionRequester
@@ -300,24 +304,37 @@ private fun rememberStatsPermissionState(): CommandPermissionUiState {
         requiredEntries = entries,
         onGrantClick = {
             if (granted) {
-                Permissions.openAppDetails(context)
+                openLocationSettings(context)
             } else {
                 requestPermission(Permissions.requiredForFineLocation())
                 refresh()
             }
         },
-        onRevokeClick = { Permissions.openAppDetails(context) }
+        onRevokeClick = { openLocationSettings(context) }
     )
 }
 
 @Composable
 private fun rememberSecureSettingsPermissionState(): CommandPermissionUiState {
     val context = LocalContext.current
-    val entries = listOf(PermissionEntry("Write to secure settings", false))
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var granted by remember { mutableStateOf(Settings.System.canWrite(context)) }
+
+    val refresh = { granted = Settings.System.canWrite(context) }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Write to secure settings", granted))
     return CommandPermissionUiState(
         requiredEntries = entries,
-        onGrantClick = { Permissions.openAppDetails(context) },
-        onRevokeClick = { Permissions.openAppDetails(context) }
+        onGrantClick = { openWriteSettings(context) },
+        onRevokeClick = { openWriteSettings(context) }
     )
 }
 
@@ -327,8 +344,12 @@ private fun rememberLocatePermissionState(): CommandPermissionUiState {
     val lifecycleOwner = LocalLifecycleOwner.current
     val requestPermission = rememberPermissionRequester { }
     var granted by remember { mutableStateOf(locationGranted(context)) }
+    var optionalGranted by remember { mutableStateOf(Settings.System.canWrite(context)) }
 
-    val refresh = { granted = locationGranted(context) }
+    val refresh = {
+        granted = locationGranted(context)
+        optionalGranted = Settings.System.canWrite(context)
+    }
     LaunchedEffect(Unit) { refresh() }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -339,30 +360,55 @@ private fun rememberLocatePermissionState(): CommandPermissionUiState {
     }
 
     val entries = listOf(PermissionEntry("Location", granted))
-    val optional = listOf(PermissionEntry("Write to secure settings", false))
+    val optional = listOf(PermissionEntry("Write to secure settings", optionalGranted))
     return CommandPermissionUiState(
         requiredEntries = entries,
         optionalEntries = optional,
         onGrantClick = {
             if (granted) {
-                Permissions.openAppDetails(context)
+                openLocationSettings(context)
             } else {
                 requestPermission(Permissions.requiredForFineLocation())
                 refresh()
             }
         },
-        onRevokeClick = { Permissions.openAppDetails(context) }
+        onRevokeClick = { openLocationSettings(context) }
     )
 }
 
 @Composable
 private fun rememberLockPermissionState(): CommandPermissionUiState {
     val context = LocalContext.current
-    val entries = listOf(PermissionEntry("Device admin", false))
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var adminGranted by remember { mutableStateOf(isDeviceAdminEnabled(context)) }
+    var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+
+    val refresh = {
+        adminGranted = isDeviceAdminEnabled(context)
+        overlayGranted = Settings.canDrawOverlays(context)
+    }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Device admin", adminGranted))
+    val optional = listOf(PermissionEntry("Display over other apps", overlayGranted))
     return CommandPermissionUiState(
         requiredEntries = entries,
-        onGrantClick = { Permissions.openAppDetails(context) },
-        onRevokeClick = { Permissions.openAppDetails(context) }
+        optionalEntries = optional,
+        onGrantClick = {
+            when {
+                !adminGranted -> requestDeviceAdmin(context)
+                !overlayGranted -> openOverlaySettings(context)
+                else -> openDeviceAdminManagement(context)
+            }
+        },
+        onRevokeClick = { openDeviceAdminManagement(context) }
     )
 }
 
@@ -405,4 +451,52 @@ private fun openOverlaySettings(context: Context) {
             Uri.parse("package:${context.packageName}")
         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     )
+}
+
+private fun openLocationSettings(context: Context) {
+    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
+
+private fun openWriteSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:${context.packageName}"))
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    context.startActivity(intent)
+}
+
+private fun requestDeviceAdmin(context: Context) {
+    if (!openDeviceAdminSettingsList(context)) {
+        val component = ComponentName(context, AdminReceiver::class.java)
+        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+            putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, component)
+            putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, context.getString(R.string.device_admin_explanation))
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+}
+
+private fun openDeviceAdminManagement(context: Context) {
+    if (!openDeviceAdminSettingsList(context)) {
+        val intent = Intent(Settings.ACTION_SECURITY_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+}
+
+private fun isDeviceAdminEnabled(context: Context): Boolean {
+    val manager = context.getSystemService(DevicePolicyManager::class.java)
+    val component = ComponentName(context, AdminReceiver::class.java)
+    return manager?.isAdminActive(component) == true
+}
+
+private fun openDeviceAdminSettingsList(context: Context): Boolean {
+    val intent = Intent().apply {
+        setClassName("com.android.settings", "com.android.settings.Settings\$DeviceAdminSettingsActivity")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    return runCatching {
+        context.startActivity(intent)
+        true
+    }.getOrElse { false }
 }
