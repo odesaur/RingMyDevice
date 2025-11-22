@@ -11,15 +11,6 @@ enum class HomeTab(val label: String, val icon: ImageVector) {
     Settings("Settings", Icons.Outlined.Settings)
 }
 
-/* Command cards */
-data class CommandItem(
-    val title: String,
-    val description: String,
-    val requiredPermissions: List<String>,
-    val icon: ImageVector,
-    val exampleSyntax: String
-)
-
 /* Settings rows */
 data class SettingsItem(
     val title: String,
