@@ -265,14 +265,19 @@ object CommandProcessor {
                 logNotes = "gps failed - missing arg"
             )
         }
+        val canWriteSettings = canModifyLocationMode(context)
         val mode = when (target) {
             "on" -> Settings.Secure.LOCATION_MODE_HIGH_ACCURACY
             "off" -> Settings.Secure.LOCATION_MODE_OFF
             else -> Settings.Secure.LOCATION_MODE_HIGH_ACCURACY
         }
         @Suppress("DEPRECATION")
-        val success = Settings.Secure.putInt(context.contentResolver, Settings.Secure.LOCATION_MODE, mode)
-        val msg = if (success) "GPS ${if (target == "off") "disabled" else "enabled"}" else "Unable to modify GPS"
+        val success = canWriteSettings && Settings.Secure.putInt(context.contentResolver, Settings.Secure.LOCATION_MODE, mode)
+        val msg = when {
+            success -> "GPS ${if (target == "off") "disabled" else "enabled"}"
+            !canWriteSettings -> "Android prevents changing GPS mode; please adjust in system settings."
+            else -> "Unable to modify GPS"
+        }
         notifyUser(context, source, msg)
         return CommandExecutionResult(
             CommandId.GPS,
@@ -445,6 +450,14 @@ object CommandProcessor {
             feedbackMessage = "Unauthorized sender",
             logNotes = "Unauthorized sender"
         )
+}
+
+private fun canModifyLocationMode(context: Context): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        Settings.System.canWrite(context)
+    } else {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SETTINGS) == PackageManager.PERMISSION_GRANTED
+    }
 }
 
 private fun hasNotificationPermission(context: Context): Boolean {

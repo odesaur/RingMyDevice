@@ -144,16 +144,6 @@ fun TransportScreen(modifier: Modifier = Modifier) {
                             Permissions.requiredForSmsSend()
                         )
                     )
-                },
-                onManageAllowedContacts = { showAllowedContacts = true },
-                onSendHelp = {
-                    if (allowedContacts.isEmpty()) {
-                        Toast.makeText(context, "Add an allowed contact first", Toast.LENGTH_SHORT).show()
-                    } else if (!smsPermissionGranted) {
-                        Toast.makeText(context, "Grant SMS permission to send help", Toast.LENGTH_SHORT).show()
-                    } else {
-                        showSendHelpDialog = true
-                    }
                 }
             )
         }
@@ -231,47 +221,13 @@ fun TransportScreen(modifier: Modifier = Modifier) {
             }
         )
     }
-    if (showSendHelpDialog) {
-        AlertDialog(
-            onDismissRequest = { showSendHelpDialog = false },
-            title = { Text("Send help SMS") },
-            text = {
-                if (allowedContacts.isEmpty()) {
-                    Text("No allowed contacts available.")
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        allowedContacts.forEach { contact ->
-                            Button(
-                                onClick = {
-                                    val sendResult = sendHelpSms(context, contact, baseCommand)
-                                    val message = when (sendResult) {
-                                        SmsFeedbackSender.Result.Sent -> "Sent help to ${contact.displayName()}"
-                                        SmsFeedbackSender.Result.PermissionMissing -> "Grant SMS permission to send help"
-                                        SmsFeedbackSender.Result.Failed -> "Unable to send SMS"
-                                    }
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                    showSendHelpDialog = false
-                                }
-                            ) {
-                                Text(contact.displayName())
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSendHelpDialog = false }) { Text("Close") }
-            }
-        )
-    }
+    if (showSendHelpDialog) { /* Dialog removed */ }
 }
 
 @Composable
 private fun SmsTransportCard(
     hasSmsPermission: Boolean,
-    onRequestSmsPermission: () -> Unit,
-    onManageAllowedContacts: () -> Unit,
-    onSendHelp: () -> Unit
+    onRequestSmsPermission: () -> Unit
 ) {
     TransportCard(
         icon = Icons.Outlined.Sms,
@@ -281,15 +237,12 @@ private fun SmsTransportCard(
         content = {
             PermissionRow(label = "Required permissions: SMS", granted = hasSmsPermission)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = onManageAllowedContacts) {
-                Text("Allowed contacts")
-            }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onRequestSmsPermission, enabled = !hasSmsPermission) {
+            Button(
+                onClick = onRequestSmsPermission,
+                enabled = !hasSmsPermission
+            ) {
                 Text(if (hasSmsPermission) "Permission granted" else "Grant SMS permission")
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onSendHelp, enabled = hasSmsPermission) { Text("Send help SMS") }
         }
     )
 }
@@ -423,19 +376,6 @@ private fun PermissionRow(label: String, granted: Boolean) {
         style = MaterialTheme.typography.labelLarge
     )
 }
-
-private fun sendHelpSms(context: Context, contact: AllowedContact, baseCommand: String): SmsFeedbackSender.Result {
-    val message = CommandHelpResponder.buildHelpMessageFromCommands(baseCommand)
-    return SmsFeedbackSender.send(
-        context = context,
-        destinationPhoneNumber = contact.phoneNumber,
-        messageBody = message,
-        requestPermissionIfNeeded = true
-    )
-}
-
-private fun AllowedContact.displayName(): String =
-    if (name.isNotBlank()) "$name (${phoneNumber})" else phoneNumber
 
 @Composable
 private fun RowedButtons(
