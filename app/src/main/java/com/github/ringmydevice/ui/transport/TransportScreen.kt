@@ -1,6 +1,7 @@
 package com.github.ringmydevice.ui.transport
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -39,14 +40,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -58,11 +60,19 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.github.ringmydevice.commands.CommandHelpResponder
 import com.github.ringmydevice.commands.CommandProcessor
 import com.github.ringmydevice.commands.CommandSource
+import com.github.ringmydevice.data.model.AllowedContact
+import com.github.ringmydevice.permissions.Permissions
 import com.github.ringmydevice.ui.settings.AllowedContactsScreen
 import com.github.ringmydevice.ui.settings.FmdServerScreen
+import com.github.ringmydevice.viewmodel.AllowedContactsViewModel
+import com.github.ringmydevice.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
+import android.telephony.SmsManager
+import android.widget.Toast
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,20 +80,25 @@ fun TransportScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val allowedContactsViewModel: AllowedContactsViewModel = viewModel()
+    val allowedContacts by allowedContactsViewModel.contacts.collectAsState()
+    val settingsViewModel: SettingsViewModel = viewModel()
+    val baseCommand by settingsViewModel.rmdCommand.collectAsState(initial = "rmd")
 
     var showAllowedContacts by remember { mutableStateOf(false) }
     var showFmdSettings by remember { mutableStateOf(false) }
     var showInAppDialog by remember { mutableStateOf(false) }
     var showMeshtasticDialog by remember { mutableStateOf(false) }
+    var showSendHelpDialog by remember { mutableStateOf(false) }
 
-    var smsPermissionGranted by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECEIVE_SMS)) }
+    var smsPermissionGranted by remember { mutableStateOf(hasPermission(context, Manifest.permission.RECEIVE_SMS) && hasPermission(context, Permissions.requiredForSmsSend())) }
     var postNotificationsGranted by remember { mutableStateOf(hasPostNotificationPermission(context)) }
     var notificationAccessGranted by remember { mutableStateOf(hasNotificationListenerAccess(context)) }
     var bluetoothPermissionGranted by remember { mutableStateOf(hasPermission(context, Manifest.permission.BLUETOOTH_CONNECT)) }
     var locationPermissionGranted by remember { mutableStateOf(hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)) }
 
-    val smsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        smsPermissionGranted = granted
+    val smsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        smsPermissionGranted = result.all { it.value }
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         postNotificationsGranted = granted || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
@@ -99,10 +114,11 @@ fun TransportScreen(modifier: Modifier = Modifier) {
         locationPermissionGranted = granted
     }
 
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                smsPermissionGranted = hasPermission(context, Manifest.permission.RECEIVE_SMS)
+                smsPermissionGranted = hasPermission(context, Manifest.permission.RECEIVE_SMS) && hasPermission(context, Permissions.requiredForSmsSend())
                 postNotificationsGranted = hasPostNotificationPermission(context)
                 notificationAccessGranted = hasNotificationListenerAccess(context)
                 bluetoothPermissionGranted = hasPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
@@ -120,9 +136,25 @@ fun TransportScreen(modifier: Modifier = Modifier) {
     ) {
         item {
             SmsTransportCard(
-                hasPermission = smsPermissionGranted,
-                onRequestPermission = { smsPermissionLauncher.launch(Manifest.permission.RECEIVE_SMS) },
-                onManageAllowedContacts = { showAllowedContacts = true }
+                hasSmsPermission = smsPermissionGranted,
+                onRequestSmsPermission = {
+                    smsPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.RECEIVE_SMS,
+                            Permissions.requiredForSmsSend()
+                        )
+                    )
+                },
+                onManageAllowedContacts = { showAllowedContacts = true },
+                onSendHelp = {
+                    if (allowedContacts.isEmpty()) {
+                        Toast.makeText(context, "Add an allowed contact first", Toast.LENGTH_SHORT).show()
+                    } else if (!smsPermissionGranted) {
+                        Toast.makeText(context, "Grant SMS permission to send help", Toast.LENGTH_SHORT).show()
+                    } else {
+                        showSendHelpDialog = true
+                    }
+                }
             )
         }
         item {
@@ -199,29 +231,61 @@ fun TransportScreen(modifier: Modifier = Modifier) {
             }
         )
     }
+    if (showSendHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showSendHelpDialog = false },
+            title = { Text("Send help SMS") },
+            text = {
+                if (allowedContacts.isEmpty()) {
+                    Text("No allowed contacts available.")
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        allowedContacts.forEach { contact ->
+                            Button(
+                                onClick = {
+                                    val success = sendHelpSms(context, contact, baseCommand)
+                                    val message = if (success) "Sent help to ${contact.displayName()}" else "Unable to send SMS"
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                    showSendHelpDialog = false
+                                }
+                            ) {
+                                Text(contact.displayName())
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSendHelpDialog = false }) { Text("Close") }
+            }
+        )
+    }
 }
 
 @Composable
 private fun SmsTransportCard(
-    hasPermission: Boolean,
-    onRequestPermission: () -> Unit,
-    onManageAllowedContacts: () -> Unit
+    hasSmsPermission: Boolean,
+    onRequestSmsPermission: () -> Unit,
+    onManageAllowedContacts: () -> Unit,
+    onSendHelp: () -> Unit
 ) {
     TransportCard(
         icon = Icons.Outlined.Sms,
         title = "SMS",
         description = "Send commands to your device over SMS. Only numbers in the allowlist can control RMD. " +
-            "Unlisted numbers must include the PIN, e.g. \"fmd 1234 help\". Numbers that authenticate with the PIN are allowed for 10 minutes.",
+            "Unlisted numbers must include the PIN, e.g. \"rmd 1234 help\". Numbers that authenticate with the PIN are allowed for 10 minutes.",
         content = {
-            PermissionRow(label = "Required permissions: SMS", granted = hasPermission)
+            PermissionRow(label = "Required permissions: SMS", granted = hasSmsPermission)
             Spacer(Modifier.height(12.dp))
             Button(onClick = onManageAllowedContacts) {
                 Text("Allowed contacts")
             }
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onRequestPermission, enabled = !hasPermission) {
-                Text(if (hasPermission) "Permission granted" else "Grant SMS permission")
+            OutlinedButton(onClick = onRequestSmsPermission, enabled = !hasSmsPermission) {
+                Text(if (hasSmsPermission) "Permission granted" else "Grant SMS permission")
             }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onSendHelp, enabled = hasSmsPermission) { Text("Send help SMS") }
         }
     )
 }
@@ -235,7 +299,7 @@ private fun NotificationReplyCard(
         icon = Icons.Outlined.Notifications,
         title = "Notification reply",
         description = "Allow RMD to read notifications that support quick reply. " +
-            "This lets you send commands via apps like Signal by replying \"fmd ring\". " +
+            "This lets you send commands via apps like Signal by replying \"rmd ring\". " +
             "Every message must include the PIN.",
         content = {
             PermissionRow(label = "Required permissions: Notification access", granted = hasNotificationAccess)
@@ -251,7 +315,7 @@ private fun NotificationReplyCard(
 private fun FmdServerCard(onOpenSettings: () -> Unit) {
     TransportCard(
         icon = Icons.Outlined.Cloud,
-        title = "FMD Server",
+        title = "RMD Server",
         description = "Use a self-hosted server (or the official instance) to control your device over the internet. " +
             "The server stores your data encrypted with your password.",
         content = {
@@ -330,10 +394,10 @@ private fun TransportCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(icon, contentDescription = null)
                 Spacer(Modifier.width(12.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(description, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -355,6 +419,26 @@ private fun PermissionRow(label: String, granted: Boolean) {
         style = MaterialTheme.typography.labelLarge
     )
 }
+
+private fun sendHelpSms(context: Context, contact: AllowedContact, baseCommand: String): Boolean {
+    val permission = Permissions.requiredForSmsSend()
+    if (!Permissions.has(context, permission)) {
+        Toast.makeText(context, "Grant SMS permission first", Toast.LENGTH_SHORT).show()
+        return false
+    }
+    val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        context.getSystemService(SmsManager::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        SmsManager.getDefault()
+    }
+    val message = CommandHelpResponder.buildHelpMessageFromCommands(baseCommand)
+    smsManager?.sendTextMessage(contact.phoneNumber, null, message, null, null)
+    return smsManager != null
+}
+
+private fun AllowedContact.displayName(): String =
+    if (name.isNotBlank()) "$name (${phoneNumber})" else phoneNumber
 
 @Composable
 private fun RowedButtons(
