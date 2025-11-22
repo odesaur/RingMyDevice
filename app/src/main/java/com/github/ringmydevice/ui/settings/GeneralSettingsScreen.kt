@@ -72,6 +72,7 @@ fun GeneralSettingsScreen(
     val rmdCommand by viewModel.rmdCommand.collectAsState()
     val ringtoneUri by viewModel.rmdRingtone.collectAsState()
     val lockMessage by viewModel.rmdLockMessage.collectAsState()
+    val smsFeedbackEnabled by viewModel.smsFeedbackEnabled.collectAsState()
 
     var showPinDialog by remember { mutableStateOf(false) }
     var pinInput by remember { mutableStateOf("") }
@@ -214,6 +215,28 @@ fun GeneralSettingsScreen(
                             }
                         )
                     )
+                }
+            }
+
+            item {
+                HorizontalDivider()
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("SMS feedback", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Send SMS confirmations back to trusted contacts after commands are processed.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Switch(
+                            checked = smsFeedbackEnabled,
+                            onCheckedChange = { enabled -> viewModel.setSmsFeedbackEnabled(enabled) }
+                        )
+                        Text("Send SMS feedback", style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
             }
 

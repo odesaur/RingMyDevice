@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">RMD</string>
+    <string name="device_admin_explanation">Allow RMD to lock the device remotely.</string>
 </resources>

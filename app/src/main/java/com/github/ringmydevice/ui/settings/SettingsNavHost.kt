@@ -1,11 +1,24 @@
 package com.github.ringmydevice.ui.settings
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.github.ringmydevice.data.backup.SettingsBackupManager
 import com.github.ringmydevice.ui.theme.ThemeSettingsState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 private object SettingsRoutes {
     const val HOME = "settings/home"
@@ -23,6 +36,48 @@ fun SettingsNavHost(
     themeSettings: ThemeSettingsState
 ) {
     val nav = rememberNavController()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = SettingsBackupManager.export(context, uri)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        result.fold(
+                            onSuccess = { "Settings exported" },
+                            onFailure = { "Export failed: ${it.message ?: "Unknown error"}" }
+                        ),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = SettingsBackupManager.import(context, uri)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        result.fold(
+                            onSuccess = { "Settings imported" },
+                            onFailure = { "Import failed: ${it.message ?: "Unknown error"}" }
+                        ),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
 
     NavHost(
         navController = nav,
@@ -38,6 +93,17 @@ fun SettingsNavHost(
                 onOpenLogs = { nav.navigate(SettingsRoutes.LOGS) },
                 onOpenAbout = { nav.navigate(SettingsRoutes.ABOUT) },
                 onOpenAllowedContacts = { nav.navigate(SettingsRoutes.ALLOWED) },
+                onExport = {
+                    val timestamp = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+                        .withZone(ZoneId.systemDefault())
+                        .format(Instant.now())
+                    val randomSuffix = UUID.randomUUID().toString().take(4)
+                    val fileName = "rmd-backup-${timestamp}${randomSuffix}.json"
+                    exportLauncher.launch(fileName)
+                },
+                onImport = {
+                    importLauncher.launch(arrayOf("application/json"))
+                }
             )
         }
 

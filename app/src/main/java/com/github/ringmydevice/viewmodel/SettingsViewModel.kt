@@ -28,6 +28,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val RMD_COMMAND = stringPreferencesKey("rmd_command")
         val RMD_RINGTONE = stringPreferencesKey("rmd_ringtone")
         val RMD_LOCK_MESSAGE = stringPreferencesKey("rmd_lock_message")
+        val SEND_SMS_FEEDBACK = booleanPreferencesKey("send_sms_feedback")
         val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
         val FMD_SERVER_URL = stringPreferencesKey("fmd_server_url")
@@ -62,6 +63,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val rmdLockMessage = dataStore.data
         .map { it[RMD_LOCK_MESSAGE] ?: "" }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+    val smsFeedbackEnabled = dataStore.data
+        .map { it[SEND_SMS_FEEDBACK] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val themePreference = dataStore.data
         .map { prefs -> ThemePreference.valueOf(prefs[THEME_PREFERENCE] ?: ThemePreference.SYSTEM.name) }
@@ -123,6 +127,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setRmdLockMessage(message: String) {
         viewModelScope.launch { dataStore.edit { it[RMD_LOCK_MESSAGE] = message } }
+    }
+
+    fun setSmsFeedbackEnabled(enabled: Boolean) {
+        viewModelScope.launch { dataStore.edit { it[SEND_SMS_FEEDBACK] = enabled } }
     }
 
     fun setThemePreference(preference: ThemePreference) {
