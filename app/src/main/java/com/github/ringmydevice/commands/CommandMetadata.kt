@@ -1,12 +1,14 @@
 package com.github.ringmydevice.commands
 
 enum class CommandId {
+    NODISTURB,
     RING,
     RINGER_MODE,
     STATS,
-    BLUETOOTH,
-    CAMERA,
-    DELETE
+    GPS,
+    LOCATE,
+    LOCK,
+    HELP
 }
 
 data class CommandMetadata(
@@ -22,6 +24,14 @@ data class CommandMetadata(
 
 object CommandRegistry {
     val commands: List<CommandMetadata> = listOf(
+        CommandMetadata(
+            id = CommandId.NODISTURB,
+            syntax = "nodisturb [on | off]",
+            summary = "Toggle Do Not Disturb",
+            description = "Turn Do Not Disturb on or off remotely.",
+            requiredPermissions = listOf("Do Not Disturb access"),
+            smsExample = "nodisturb on"
+        ),
         CommandMetadata(
             id = CommandId.RING,
             syntax = "ring [long]",
@@ -48,28 +58,37 @@ object CommandRegistry {
             smsExample = "stats"
         ),
         CommandMetadata(
-            id = CommandId.BLUETOOTH,
-            syntax = "bluetooth [on | off]",
-            summary = "Toggle Bluetooth",
-            description = "Enable or disable Bluetooth remotely.",
-            requiredPermissions = listOf("Connect Bluetooth"),
-            smsExample = "bluetooth on"
+            id = CommandId.GPS,
+            syntax = "gps [on | off]",
+            summary = "Toggle GPS",
+            description = "Turn GPS on or off remotely.",
+            requiredPermissions = listOf("Write to secure settings"),
+            smsExample = "gps on"
         ),
         CommandMetadata(
-            id = CommandId.CAMERA,
-            syntax = "camera [front | back]",
-            summary = "Take a picture",
-            description = "Capture a picture using the front or rear camera.",
-            requiredPermissions = listOf("Camera"),
-            smsExample = "camera front"
+            id = CommandId.LOCATE,
+            syntax = "locate [last | all | cell | gps]",
+            summary = "Locate the device",
+            description = "Locate the device using GPS, cell data, or other providers.",
+            requiredPermissions = listOf("Location"),
+            optionalPermissions = listOf("Write to secure settings"),
+            smsExample = "locate gps"
         ),
         CommandMetadata(
-            id = CommandId.DELETE,
-            syntax = "delete <pin> [dryrun]",
-            summary = "Factory reset the device",
-            description = "Factory reset the device using the configured PIN. Add \"dryrun\" to test without wiping.",
+            id = CommandId.LOCK,
+            syntax = "lock [msg]",
+            summary = "Lock the device",
+            description = "Lock the device and optionally show a message on the lock screen.",
             requiredPermissions = listOf("Device admin"),
-            smsExample = "delete 1234"
+            smsExample = "lock help"
+        ),
+        CommandMetadata(
+            id = CommandId.HELP,
+            syntax = "help",
+            summary = "Show the help",
+            description = "Send a list of available commands.",
+            requiredPermissions = emptyList(),
+            smsExample = "help"
         )
     )
 }

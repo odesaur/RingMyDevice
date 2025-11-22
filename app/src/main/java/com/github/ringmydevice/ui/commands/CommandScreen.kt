@@ -21,10 +21,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
-import androidx.compose.material.icons.outlined.Bluetooth
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.GpsFixed
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.ToggleOff
@@ -169,13 +169,45 @@ private fun PermissionSection(title: String, entries: List<PermissionEntry>) {
 @Composable
 private fun permissionStateFor(id: CommandId): CommandPermissionUiState =
     when (id) {
+        CommandId.NODISTURB -> rememberNodisturbPermissionState()
         CommandId.RING -> rememberRingPermissionState()
         CommandId.RINGER_MODE -> rememberRingerModePermissionState()
         CommandId.STATS -> rememberStatsPermissionState()
-        CommandId.BLUETOOTH -> rememberBluetoothPermissionState()
-        CommandId.CAMERA -> rememberCameraPermissionState()
-        CommandId.DELETE -> rememberDeletePermissionState()
+        CommandId.GPS -> rememberSecureSettingsPermissionState()
+        CommandId.LOCATE -> rememberLocatePermissionState()
+        CommandId.LOCK -> rememberLockPermissionState()
+        CommandId.HELP -> CommandPermissionUiState(requiredEntries = emptyList(), onGrantClick = {})
     }
+
+@Composable
+private fun rememberNodisturbPermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var dndGranted by remember { mutableStateOf(Permissions.hasDndAccess(context)) }
+
+    val refresh = { dndGranted = Permissions.hasDndAccess(context) }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Do Not Disturb access", dndGranted))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        onGrantClick = {
+            if (dndGranted) {
+                Permissions.openDndAccessSettings(context)
+            } else {
+                DoNotDisturbAccessPermission.request(context)
+            }
+        },
+        onRevokeClick = { Permissions.openDndAccessSettings(context) }
+    )
+}
 
 @Composable
 private fun rememberRingPermissionState(): CommandPermissionUiState {
@@ -279,14 +311,24 @@ private fun rememberStatsPermissionState(): CommandPermissionUiState {
 }
 
 @Composable
-private fun rememberBluetoothPermissionState(): CommandPermissionUiState {
+private fun rememberSecureSettingsPermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val entries = listOf(PermissionEntry("Write to secure settings", false))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        onGrantClick = { Permissions.openAppDetails(context) },
+        onRevokeClick = { Permissions.openAppDetails(context) }
+    )
+}
+
+@Composable
+private fun rememberLocatePermissionState(): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val permission = Permissions.requiredForBluetoothConnect()
     val requestPermission = rememberPermissionRequester { }
-    var granted by remember { mutableStateOf(Permissions.has(context, permission)) }
+    var granted by remember { mutableStateOf(locationGranted(context)) }
 
-    val refresh = { granted = Permissions.has(context, permission) }
+    val refresh = { granted = locationGranted(context) }
     LaunchedEffect(Unit) { refresh() }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -296,14 +338,16 @@ private fun rememberBluetoothPermissionState(): CommandPermissionUiState {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val entries = listOf(PermissionEntry("Connect Bluetooth", granted))
+    val entries = listOf(PermissionEntry("Location", granted))
+    val optional = listOf(PermissionEntry("Write to secure settings", false))
     return CommandPermissionUiState(
         requiredEntries = entries,
+        optionalEntries = optional,
         onGrantClick = {
             if (granted) {
                 Permissions.openAppDetails(context)
             } else {
-                requestPermission(permission)
+                requestPermission(Permissions.requiredForFineLocation())
                 refresh()
             }
         },
@@ -312,40 +356,7 @@ private fun rememberBluetoothPermissionState(): CommandPermissionUiState {
 }
 
 @Composable
-private fun rememberCameraPermissionState(): CommandPermissionUiState {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val permission = Permissions.requiredForCamera()
-    val requestPermission = rememberPermissionRequester { }
-    var granted by remember { mutableStateOf(Permissions.has(context, permission)) }
-
-    val refresh = { granted = Permissions.has(context, permission) }
-    LaunchedEffect(Unit) { refresh() }
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) refresh()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    val entries = listOf(PermissionEntry("Camera", granted))
-    return CommandPermissionUiState(
-        requiredEntries = entries,
-        onGrantClick = {
-            if (granted) {
-                Permissions.openAppDetails(context)
-            } else {
-                requestPermission(permission)
-                refresh()
-            }
-        },
-        onRevokeClick = { Permissions.openAppDetails(context) }
-    )
-}
-
-@Composable
-private fun rememberDeletePermissionState(): CommandPermissionUiState {
+private fun rememberLockPermissionState(): CommandPermissionUiState {
     val context = LocalContext.current
     val entries = listOf(PermissionEntry("Device admin", false))
     return CommandPermissionUiState(
@@ -371,12 +382,14 @@ private data class CommandPermissionUiState(
 
 private fun commandIcon(id: CommandId): ImageVector =
     when (id) {
+        CommandId.NODISTURB -> Icons.Outlined.ToggleOff
         CommandId.RING -> Icons.AutoMirrored.Outlined.VolumeUp
         CommandId.RINGER_MODE -> Icons.Outlined.Vibration
         CommandId.STATS -> Icons.Outlined.SignalCellularAlt
-        CommandId.BLUETOOTH -> Icons.Outlined.Bluetooth
-        CommandId.CAMERA -> Icons.Outlined.CameraAlt
-        CommandId.DELETE -> Icons.Outlined.DeleteForever
+        CommandId.GPS -> Icons.Outlined.GpsFixed
+        CommandId.LOCATE -> Icons.Outlined.Public
+        CommandId.LOCK -> Icons.Outlined.Lock
+        CommandId.HELP -> Icons.Outlined.Info
     }
 
 private fun locationGranted(context: Context): Boolean {
