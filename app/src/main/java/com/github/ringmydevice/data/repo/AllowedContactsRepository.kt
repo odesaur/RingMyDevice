@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.json.JSONObject
@@ -28,6 +30,10 @@ class AllowedContactsRepository private constructor(context: Context) {
     private val temporaryAllow = mutableMapOf<String, Long>()
 
     fun hasContacts(): Boolean = _contacts.value.isNotEmpty()
+
+    suspend fun snapshot(): List<AllowedContact> = withContext(Dispatchers.IO) {
+        dataStore.data.first()[keyAllowedContacts]?.let { decodeContacts(it) } ?: emptyList()
+    }
 
     init {
         scope.launch {
@@ -83,6 +89,20 @@ class AllowedContactsRepository private constructor(context: Context) {
         persistContacts(emptyList())
     }
 
+    suspend fun replaceAll(list: List<AllowedContact>) {
+        val sanitized = list.map { it.sanitized() }
+        _contacts.value = sanitized
+        withContext(Dispatchers.IO) {
+            dataStore.edit { prefs ->
+                if (sanitized.isEmpty()) {
+                    prefs.remove(keyAllowedContacts)
+                } else {
+                    prefs[keyAllowedContacts] = encodeContacts(sanitized)
+                }
+            }
+        }
+    }
+
     /** Check if given sender (e.g., "+1-604…", "Alice") is allowed. */
     fun isAllowed(sender: String?): Boolean {
         if (sender.isNullOrBlank()) return false
@@ -120,10 +140,11 @@ class AllowedContactsRepository private constructor(context: Context) {
     private fun encodeContacts(list: List<AllowedContact>): String {
         val array = JSONArray()
         list.forEach { contact ->
+            val digits = normalizePhone(contact.phoneNumber)
             array.put(
                 JSONObject().apply {
                     put("name", contact.name)
-                    put("phone", contact.phoneNumber)
+                    put("phone", if (digits.isNotBlank()) digits else contact.phoneNumber)
                 }
             )
         }
