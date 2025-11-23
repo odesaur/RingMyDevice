@@ -5,6 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -131,7 +133,7 @@ fun LogItemCard(
             },
             headlineContent = {
                 Text(
-                    text = type.name,
+                    text = formatCommandType(type),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -192,5 +194,29 @@ private fun getIconForCommand(type: CommandType): ImageVector {
         CommandType.PHOTO -> Icons.Default.CameraAlt
         CommandType.WIPE -> Icons.Default.DeleteForever
         CommandType.UNKNOWN -> Icons.Default.Info
+        CommandType.NODISTURB -> Icons.Default.DoNotDisturbOn
+        CommandType.RINGER_MODE -> Icons.AutoMirrored.Filled.VolumeUp
+        CommandType.STATS -> Icons.Default.SignalCellularAlt
+        CommandType.GPS -> Icons.Default.GpsFixed
+        CommandType.LOCK -> Icons.Default.Lock
+        CommandType.HELP -> Icons.AutoMirrored.Filled.Help
+        CommandType.CONTACT -> Icons.Default.PersonAdd
+    }
+}
+
+private fun formatCommandType(type: CommandType): String {
+    return when (type) {
+        CommandType.NODISTURB -> "Do Not Disturb"
+        CommandType.RINGER_MODE -> "Ringer Mode"
+        CommandType.RING -> "Ring Device"
+        CommandType.LOCATE -> "Locate Device"
+        CommandType.PHOTO -> "Take Photo"
+        CommandType.WIPE -> "Wipe Data"
+        CommandType.STATS -> "Device Stats"
+        CommandType.GPS -> "Enable GPS"
+        CommandType.LOCK -> "Lock Device"
+        CommandType.HELP -> "Help Command"
+        CommandType.UNKNOWN -> "Unknown Action"
+        CommandType.CONTACT -> "Allowed Contacts"
     }
 }

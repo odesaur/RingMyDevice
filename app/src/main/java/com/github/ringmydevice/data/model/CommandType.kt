@@ -11,5 +11,6 @@ enum class CommandType {
     GPS,
     LOCK,
     HELP,
+    CONTACT,
     UNKNOWN
 }

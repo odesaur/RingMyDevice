@@ -56,7 +56,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.github.ringmydevice.data.model.AllowedContact
+import com.github.ringmydevice.data.model.CommandType
 import com.github.ringmydevice.viewmodel.AllowedContactsViewModel
+import com.github.ringmydevice.viewmodel.CommandViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,7 +66,8 @@ import kotlinx.coroutines.launch
 fun AllowedContactsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    vm: AllowedContactsViewModel = viewModel()
+    vm: AllowedContactsViewModel = viewModel(),
+    commandViewModel: CommandViewModel = viewModel()
 ) {
     val contacts by vm.contacts.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -127,6 +130,9 @@ fun AllowedContactsScreen(
             scope.launch { snackbarHostState.showSnackbar("Already in list") }
         }
         if (added) {
+            val logName = if(dialogName.isNotBlank()) "$dialogName ($dialogPhone)" else dialogPhone
+            commandViewModel.addLog(CommandType.CONTACT, "Added trusted contact: $logName")
+
             showDialog = false
             dialogName = ""
             dialogPhone = ""
@@ -147,6 +153,7 @@ fun AllowedContactsScreen(
                     TextButton(
                         onClick = {
                             vm.clear()
+                            commandViewModel.addLog(CommandType.CONTACT, "Cleared all trusted contacts")
                             scope.launch { snackbarHostState.showSnackbar("Cleared allowed list") }
                         },
                         enabled = contacts.isNotEmpty()
@@ -215,7 +222,11 @@ fun AllowedContactsScreen(
                     ) { idx, contact ->
                         AllowedContactRow(
                             contact = contact,
-                            onRemove = { vm.removeAt(idx) }
+                            onRemove = {
+                                val logName = if(contact.name.isNotBlank()) "${contact.name} (${contact.phoneNumber})" else contact.phoneNumber
+                                commandViewModel.addLog(CommandType.CONTACT, "Removed trusted contact: $logName")
+                                vm.removeAt(idx)
+                            }
                         )
                     }
                 }

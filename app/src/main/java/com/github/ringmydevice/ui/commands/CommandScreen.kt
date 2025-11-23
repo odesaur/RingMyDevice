@@ -1,7 +1,6 @@
 package com.github.ringmydevice.ui.commands
 
 import android.Manifest
-import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
@@ -61,10 +60,12 @@ import com.github.ringmydevice.commands.CommandId
 import com.github.ringmydevice.commands.CommandMetadata
 import com.github.ringmydevice.commands.CommandRegistry
 import com.github.ringmydevice.R
+import com.github.ringmydevice.data.model.CommandType
 import com.github.ringmydevice.permissions.AdminReceiver
 import com.github.ringmydevice.permissions.DoNotDisturbAccessPermission
-import com.github.ringmydevice.permissions.Permissions
 import com.github.ringmydevice.permissions.rememberPermissionRequester
+import com.github.ringmydevice.permissions.Permissions
+import com.github.ringmydevice.viewmodel.CommandViewModel
 import com.github.ringmydevice.viewmodel.SettingsViewModel
 
 @Composable
@@ -72,6 +73,7 @@ fun CommandScreen(modifier: Modifier = Modifier) {
     val definitions = remember { CommandRegistry.commands }
     val expandedState = remember { mutableStateMapOf<CommandId, Boolean>() }
     val settingsViewModel: SettingsViewModel = viewModel()
+    val commandViewModel: CommandViewModel = viewModel()
     val baseCommand by settingsViewModel.rmdCommand.collectAsState(initial = "rmd")
 
     LazyColumn(
@@ -79,7 +81,14 @@ fun CommandScreen(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(definitions, key = { it.id }) { definition ->
-            val permissionState = permissionStateFor(definition.id)
+            val permissionState = permissionStateFor(
+                definition.id,
+                onLogAction = { action ->
+                    val type = mapIdToType(definition.id)
+                    val detailedLog = "$action (for command: ${definition.syntax})"
+                    commandViewModel.addLog(type, detailedLog)
+                }
+            )
             CommandListItem(
                 definition = definition,
                 icon = commandIcon(definition.id),
@@ -171,20 +180,23 @@ private fun PermissionSection(title: String, entries: List<PermissionEntry>) {
 }
 
 @Composable
-private fun permissionStateFor(id: CommandId): CommandPermissionUiState =
+private fun permissionStateFor(
+    id: CommandId,
+    onLogAction: (String) -> Unit
+): CommandPermissionUiState =
     when (id) {
-        CommandId.NODISTURB -> rememberNodisturbPermissionState()
-        CommandId.RING -> rememberRingPermissionState()
-        CommandId.RINGER_MODE -> rememberRingerModePermissionState()
-        CommandId.STATS -> rememberStatsPermissionState()
-        CommandId.GPS -> rememberSecureSettingsPermissionState()
-        CommandId.LOCATE -> rememberLocatePermissionState()
-        CommandId.LOCK -> rememberLockPermissionState()
+        CommandId.NODISTURB -> rememberNoDisturbPermissionState(onLogAction)
+        CommandId.RING -> rememberRingPermissionState(onLogAction)
+        CommandId.RINGER_MODE -> rememberRingerModePermissionState(onLogAction)
+        CommandId.STATS -> rememberStatsPermissionState(onLogAction)
+        CommandId.GPS -> rememberSecureSettingsPermissionState(onLogAction)
+        CommandId.LOCATE -> rememberLocatePermissionState(onLogAction)
+        CommandId.LOCK -> rememberLockPermissionState(onLogAction)
         CommandId.HELP, CommandId.UNKNOWN -> CommandPermissionUiState(requiredEntries = emptyList(), onGrantClick = {})
     }
 
 @Composable
-private fun rememberNodisturbPermissionState(): CommandPermissionUiState {
+private fun rememberNoDisturbPermissionState(onLogAction: (String) -> Unit): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var dndGranted by remember { mutableStateOf(Permissions.hasDndAccess(context)) }
@@ -206,15 +218,19 @@ private fun rememberNodisturbPermissionState(): CommandPermissionUiState {
             if (dndGranted) {
                 Permissions.openDndAccessSettings(context)
             } else {
+                onLogAction("Granted 'Do Not Disturb' permission")
                 DoNotDisturbAccessPermission.request(context)
             }
         },
-        onRevokeClick = { Permissions.openDndAccessSettings(context) }
+        onRevokeClick = {
+            onLogAction("Revoked 'Do Not Disturb' permission")
+            Permissions.openDndAccessSettings(context)
+        }
     )
 }
 
 @Composable
-private fun rememberRingPermissionState(): CommandPermissionUiState {
+private fun rememberRingPermissionState(onLogAction: (String) -> Unit): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var dndGranted by remember { mutableStateOf(Permissions.hasDndAccess(context)) }
@@ -241,19 +257,27 @@ private fun rememberRingPermissionState(): CommandPermissionUiState {
     )
     val onGrant = {
         when {
-            !dndGranted -> DoNotDisturbAccessPermission.request(context)
-            !overlayGranted -> openOverlaySettings(context)
+            !dndGranted -> {
+                onLogAction("Granted 'Do Not Disturb' permission")
+                DoNotDisturbAccessPermission.request(context)
+            }
+            !overlayGranted -> {
+                onLogAction("Granted 'Display over other apps' permission")
+                openOverlaySettings(context)
+            }
         }
     }
     return CommandPermissionUiState(
         requiredEntries = entries,
         onGrantClick = onGrant,
-        onRevokeClick = { Permissions.openDndAccessSettings(context) }
+        onRevokeClick = {
+            onLogAction("Revoked Ring permissions")
+            Permissions.openDndAccessSettings(context) }
     )
 }
 
 @Composable
-private fun rememberRingerModePermissionState(): CommandPermissionUiState {
+private fun rememberRingerModePermissionState(onLogAction: (String) -> Unit): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var dndGranted by remember { mutableStateOf(Permissions.hasDndAccess(context)) }
@@ -275,15 +299,18 @@ private fun rememberRingerModePermissionState(): CommandPermissionUiState {
             if (dndGranted) {
                 Permissions.openDndAccessSettings(context)
             } else {
+                onLogAction("User requested Do Not Disturb access")
                 DoNotDisturbAccessPermission.request(context)
             }
         },
-        onRevokeClick = { Permissions.openDndAccessSettings(context) }
+        onRevokeClick = {
+            onLogAction("User revoked Do Not Disturb access")
+            Permissions.openDndAccessSettings(context) }
     )
 }
 
 @Composable
-private fun rememberStatsPermissionState(): CommandPermissionUiState {
+private fun rememberStatsPermissionState(onLogAction: (String) -> Unit): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val requestPermission = rememberPermissionRequester { }
@@ -306,16 +333,20 @@ private fun rememberStatsPermissionState(): CommandPermissionUiState {
             if (granted) {
                 openLocationSettings(context)
             } else {
+                onLogAction("User requested Location access")
                 requestPermission(Permissions.requiredForFineLocation())
                 refresh()
             }
         },
-        onRevokeClick = { openLocationSettings(context) }
+        onRevokeClick = {
+            onLogAction("User revoked Location access")
+            openLocationSettings(context)
+        }
     )
 }
 
 @Composable
-private fun rememberSecureSettingsPermissionState(): CommandPermissionUiState {
+private fun rememberSecureSettingsPermissionState(onLogAction: (String) -> Unit): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var granted by remember { mutableStateOf(Settings.System.canWrite(context)) }
@@ -333,13 +364,17 @@ private fun rememberSecureSettingsPermissionState(): CommandPermissionUiState {
     val entries = listOf(PermissionEntry("Write to secure settings", granted))
     return CommandPermissionUiState(
         requiredEntries = entries,
-        onGrantClick = { openWriteSettings(context) },
-        onRevokeClick = { openWriteSettings(context) }
+        onGrantClick = {
+            onLogAction("Granted 'Write Secure Settings' permission")
+            openWriteSettings(context) },
+        onRevokeClick = {
+            onLogAction("Revoked 'Write Secure Settings' permission")
+            openWriteSettings(context) }
     )
 }
 
 @Composable
-private fun rememberLocatePermissionState(): CommandPermissionUiState {
+private fun rememberLocatePermissionState(onLogAction: (String) -> Unit): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val requestPermission = rememberPermissionRequester { }
@@ -368,16 +403,20 @@ private fun rememberLocatePermissionState(): CommandPermissionUiState {
             if (granted) {
                 openLocationSettings(context)
             } else {
+                onLogAction("Granted 'Fine Location' permission")
                 requestPermission(Permissions.requiredForFineLocation())
                 refresh()
             }
         },
-        onRevokeClick = { openLocationSettings(context) }
+        onRevokeClick = {
+            onLogAction("Revoked Location permission")
+            openLocationSettings(context)
+        }
     )
 }
 
 @Composable
-private fun rememberLockPermissionState(): CommandPermissionUiState {
+private fun rememberLockPermissionState(onLogAction: (String) -> Unit): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var adminGranted by remember { mutableStateOf(isDeviceAdminEnabled(context)) }
@@ -403,12 +442,21 @@ private fun rememberLockPermissionState(): CommandPermissionUiState {
         optionalEntries = optional,
         onGrantClick = {
             when {
-                !adminGranted -> requestDeviceAdmin(context)
-                !overlayGranted -> openOverlaySettings(context)
+                !adminGranted -> {
+                    onLogAction("Enabled Device Admin privilege")
+                    requestDeviceAdmin(context)
+                }
+                !overlayGranted -> {
+                    onLogAction("Granted 'Display over other apps' permission")
+                    openOverlaySettings(context)
+                }
                 else -> openDeviceAdminManagement(context)
             }
         },
-        onRevokeClick = { openDeviceAdminManagement(context) }
+        onRevokeClick = {
+            onLogAction("Disabled Device Admin privilege")
+            openDeviceAdminManagement(context)
+        }
     )
 }
 
@@ -499,4 +547,12 @@ private fun openDeviceAdminSettingsList(context: Context): Boolean {
         context.startActivity(intent)
         true
     }.getOrElse { false }
+}
+
+private fun mapIdToType(id: CommandId): CommandType {
+    return try {
+        CommandType.valueOf(id.name)
+    } catch (_: Exception) {
+        CommandType.UNKNOWN
+    }
 }
