@@ -7,7 +7,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 /* Tabs */
 enum class HomeTab(val label: String, val icon: ImageVector) {
     Commands("Commands", Icons.Outlined.PhoneIphone),
-    Transport("Transport channels", Icons.Outlined.Public),
+    Transport("Transport", Icons.Outlined.Public),
+    Map("Map", Icons.Outlined.Map),
     Settings("Settings", Icons.Outlined.Settings)
 }
 
