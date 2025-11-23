@@ -38,7 +38,12 @@ object SmsFeedbackSender {
             else -> @Suppress("DEPRECATION") SmsManager.getDefault()
         } ?: @Suppress("DEPRECATION") SmsManager.getDefault()
         return runCatching {
-            smsManager.sendTextMessage(destinationPhoneNumber, null, messageBody, null, null)
+            val parts = smsManager.divideMessage(messageBody)
+            if (parts.size <= 1) {
+                smsManager.sendTextMessage(destinationPhoneNumber, null, messageBody, null, null)
+            } else {
+                smsManager.sendMultipartTextMessage(destinationPhoneNumber, null, parts, null, null)
+            }
         }.fold(
             onSuccess = { Result.Sent },
             onFailure = {

@@ -1,12 +1,10 @@
 package com.github.ringmydevice.ui.commands
 
-import android.Manifest
 import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
@@ -52,7 +50,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -287,9 +284,14 @@ private fun rememberStatsPermissionState(): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val requestPermission = rememberPermissionRequester { }
-    var granted by remember { mutableStateOf(locationGranted(context)) }
+    val nearbyPermission = Permissions.requiredForNearbyWifi()
+    var locationGranted by remember { mutableStateOf(locationGranted(context)) }
+    var nearbyGranted by remember { mutableStateOf(nearbyPermission == null || nearbyWifiGranted(context)) }
 
-    val refresh = { granted = locationGranted(context) }
+    val refresh = {
+        locationGranted = locationGranted(context)
+        nearbyGranted = nearbyPermission == null || nearbyWifiGranted(context)
+    }
     LaunchedEffect(Unit) { refresh() }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -299,18 +301,21 @@ private fun rememberStatsPermissionState(): CommandPermissionUiState {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val entries = listOf(PermissionEntry("Location", granted))
+    val entries = buildList {
+        add(PermissionEntry("Location", locationGranted))
+        if (nearbyPermission != null) add(PermissionEntry("Nearby Wi-Fi devices", nearbyGranted))
+    }
     return CommandPermissionUiState(
         requiredEntries = entries,
         onGrantClick = {
-            if (granted) {
-                openLocationSettings(context)
-            } else {
-                requestPermission(Permissions.requiredForFineLocation())
-                refresh()
+            when {
+                !locationGranted -> requestPermission(Permissions.requiredForFineLocation())
+                nearbyPermission != null && !nearbyGranted -> requestPermission(nearbyPermission)
+                else -> openLocationSettings(context)
             }
+            refresh()
         },
-        onRevokeClick = { openLocationSettings(context) }
+        onRevokeClick = { Permissions.openAppDetails(context) }
     )
 }
 
@@ -438,11 +443,9 @@ private fun commandIcon(id: CommandId): ImageVector =
         CommandId.HELP, CommandId.UNKNOWN -> Icons.Outlined.Info
     }
 
-private fun locationGranted(context: Context): Boolean {
-    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    return fine || coarse
-}
+private fun locationGranted(context: Context): Boolean = Permissions.hasLocationPermission(context)
+
+private fun nearbyWifiGranted(context: Context): Boolean = Permissions.hasNearbyWifiPermission(context)
 
 private fun openOverlaySettings(context: Context) {
     context.startActivity(

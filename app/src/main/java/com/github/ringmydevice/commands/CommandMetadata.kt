@@ -53,9 +53,10 @@ object CommandRegistry {
         CommandMetadata(
             id = CommandId.STATS,
             syntax = "stats",
-            summary = "Get network statistics",
-            description = "Retrieve recent network statistics from the device.",
-            requiredPermissions = listOf("Location"),
+            summary = "Get device network info",
+            description = "List active interface IPs and connected or nearby Wi-Fi networks.",
+            requiredPermissions = listOf("Location", "Nearby Wi-Fi devices"),
+            details = listOf("Wi-Fi needs to be on to list nearby networks."),
             smsExample = "stats"
         ),
         CommandMetadata(
