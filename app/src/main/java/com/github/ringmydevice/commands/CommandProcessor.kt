@@ -1,6 +1,7 @@
 package com.github.ringmydevice.commands
 
 import android.Manifest
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
@@ -17,6 +18,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationCompat
 import com.github.ringmydevice.data.model.AllowedContact
 import com.github.ringmydevice.data.model.CommandLog
 import com.github.ringmydevice.data.model.CommandType
@@ -25,6 +27,7 @@ import com.github.ringmydevice.di.AppGraph
 import com.github.ringmydevice.permissions.AdminReceiver
 import com.github.ringmydevice.service.RingService
 import com.github.ringmydevice.sms.SmsFeedbackSender
+import com.github.ringmydevice.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -96,7 +99,7 @@ object CommandProcessor {
                 CommandId.GPS -> dispatchGps(appContext, args, source)
                 CommandId.LOCATE -> dispatchLocate(appContext, args, source)
                 CommandId.LOCK -> dispatchLock(appContext, args, source)
-                CommandId.HELP -> dispatchHelp(baseCommand)
+                CommandId.HELP -> dispatchHelp(appContext, source, baseCommand)
                 CommandId.UNKNOWN -> CommandExecutionResult(
                     CommandId.UNKNOWN,
                     CommandStatus.INVALID_ARGUMENTS,
@@ -374,8 +377,9 @@ object CommandProcessor {
         )
     }
 
-    private suspend fun dispatchHelp(baseCommand: String): CommandExecutionResult {
+    private suspend fun dispatchHelp(context: Context, source: CommandSource, baseCommand: String): CommandExecutionResult {
         val message = CommandHelpResponder.buildHelpMessageFromCommands(baseCommand)
+        notifyUser(context, source, message)
         return CommandExecutionResult(
             CommandId.HELP,
             CommandStatus.SUCCESS,
@@ -466,7 +470,29 @@ private fun hasNotificationPermission(context: Context): Boolean {
 
 private fun notifyUser(context: Context, source: CommandSource, message: String) {
     if (source != CommandSource.IN_APP) return
-    Handler(Looper.getMainLooper()).post {
-        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    val appContext = context.applicationContext
+    val channelId = "rmd_command_feedback"
+    val notificationManagerCompat = NotificationManagerCompat.from(appContext)
+    if (!notificationManagerCompat.areNotificationsEnabled()) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+        }
+        return
     }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val nm = appContext.getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(channelId, "RMD command feedback", NotificationManager.IMPORTANCE_DEFAULT)
+        nm?.createNotificationChannel(channel)
+    }
+
+    val notification = NotificationCompat.Builder(appContext, channelId)
+        .setSmallIcon(R.mipmap.ic_launcher)
+        .setContentTitle("RMD command result")
+        .setContentText(message)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+        .setAutoCancel(true)
+        .build()
+
+    notificationManagerCompat.notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification)
 }

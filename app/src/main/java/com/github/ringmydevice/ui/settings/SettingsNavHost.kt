@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.github.ringmydevice.data.backup.SettingsBackupManager
 import com.github.ringmydevice.ui.theme.ThemeSettingsState
+import com.github.ringmydevice.ui.settings.OpenCellIdScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,6 +29,7 @@ private object SettingsRoutes {
     const val GENERAL = "settings/general"
     const val FMD = "settings/fmd"
     const val APPEARANCE = "settings/appearance"
+    const val OPENCELLID = "settings/opencellid"
 }
 
 @Composable
@@ -93,6 +95,7 @@ fun SettingsNavHost(
                 onOpenLogs = { nav.navigate(SettingsRoutes.LOGS) },
                 onOpenAbout = { nav.navigate(SettingsRoutes.ABOUT) },
                 onOpenAllowedContacts = { nav.navigate(SettingsRoutes.ALLOWED) },
+                onOpenOpenCellId = { nav.navigate(SettingsRoutes.OPENCELLID) },
                 onExport = {
                     val timestamp = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
                         .withZone(ZoneId.systemDefault())
@@ -128,6 +131,9 @@ fun SettingsNavHost(
                 onBack = { nav.popBackStack() },
                 themeSettings = themeSettings
             )
+        }
+        composable(SettingsRoutes.OPENCELLID) {
+            OpenCellIdScreen(onBack = { nav.popBackStack() })
         }
     }
 }
