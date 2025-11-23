@@ -18,6 +18,8 @@ import org.json.JSONObject
 interface LogsRepository {
     suspend fun log(entry: AppLogEntry)
     suspend fun recent(limit: Int = 200): List<AppLogEntry>
+    suspend fun exportAll(contentResolver: android.content.ContentResolver, uri: android.net.Uri): Boolean
+    suspend fun clear(): Boolean
 }
 
 class FileLogsRepository(private val context: Context) : LogsRepository {
@@ -48,6 +50,37 @@ class FileLogsRepository(private val context: Context) : LogsRepository {
         }
         entries.sortByDescending { it.timeMillis }
         entries.take(limit)
+    }
+
+    override suspend fun exportAll(contentResolver: android.content.ContentResolver, uri: android.net.Uri): Boolean =
+        withContext(Dispatchers.IO) {
+            val files = context.filesDir
+                .listFiles { _, name -> name.startsWith("fmd-logs-") && name.endsWith(".json") }
+                ?.sortedBy { it.name }
+                .orEmpty()
+            val combined = JSONArray()
+            files.forEach { file ->
+                val arr = readArray(file)
+                for (i in 0 until arr.length()) {
+                    combined.put(arr.getJSONObject(i))
+                }
+            }
+            return@withContext runCatching {
+                contentResolver.openOutputStream(uri, "w")?.bufferedWriter()?.use { writer ->
+                    writer.write(combined.toString())
+                } ?: false
+            }.isSuccess
+        }
+
+    override suspend fun clear(): Boolean = withContext(Dispatchers.IO) {
+        val files = context.filesDir
+            .listFiles { _, name -> name.startsWith("fmd-logs-") && name.endsWith(".json") }
+            .orEmpty()
+        var success = true
+        files.forEach { file ->
+            if (!file.delete()) success = false
+        }
+        success
     }
 
     private fun fileFor(timeMillis: Long): File {
