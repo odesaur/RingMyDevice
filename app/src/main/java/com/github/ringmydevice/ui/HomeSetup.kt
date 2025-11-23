@@ -9,6 +9,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.github.ringmydevice.ui.commands.CommandScreen
 import com.github.ringmydevice.ui.model.HomeTab
 import com.github.ringmydevice.ui.settings.SettingsNavHost
+import com.github.ringmydevice.ui.maps.MapScreen
 import com.github.ringmydevice.ui.theme.RMDTheme
 import com.github.ringmydevice.ui.theme.ThemePreference
 import com.github.ringmydevice.ui.theme.ThemeSettingsState
@@ -51,6 +52,7 @@ fun HomeSetup(themeSettings: ThemeSettingsState) {
         when (selectedTab) {
             HomeTab.Commands -> CommandScreen(Modifier.padding(inner))
             HomeTab.Transport -> TransportScreen(Modifier.padding(inner))
+            HomeTab.Map -> MapScreen(Modifier.padding(inner))
             HomeTab.Settings -> SettingsNavHost(
                 modifier = Modifier.padding(inner),
                 themeSettings = themeSettings

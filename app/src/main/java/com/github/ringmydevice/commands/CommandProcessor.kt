@@ -20,8 +20,11 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationCompat
 import com.github.ringmydevice.data.model.AllowedContact
+import com.github.ringmydevice.data.model.AppLogEntry
 import com.github.ringmydevice.data.model.CommandLog
 import com.github.ringmydevice.data.model.CommandType
+import com.github.ringmydevice.data.model.LogCategory
+import com.github.ringmydevice.data.model.LogLevel
 import com.github.ringmydevice.data.repo.SettingsRepository
 import com.github.ringmydevice.di.AppGraph
 import com.github.ringmydevice.permissions.AdminReceiver
@@ -245,6 +248,7 @@ object CommandProcessor {
         )
     }
 
+    @Suppress("DEPRECATION")
     private suspend fun dispatchGps(
         context: Context,
         args: List<String>,
@@ -411,6 +415,16 @@ object CommandProcessor {
                     from = sender,
                     success = result.status == CommandStatus.SUCCESS,
                     notes = result.logNotes ?: result.feedbackMessage
+                )
+            )
+            val level = if (result.status == CommandStatus.SUCCESS) LogLevel.INFO else LogLevel.WARN
+            val message = result.logNotes ?: result.feedbackMessage ?: result.status.name
+            AppGraph.logsRepo.log(
+                AppLogEntry(
+                    level = level,
+                    tag = "Command",
+                    message = "${result.commandId}: $message",
+                    category = LogCategory.COMMAND
                 )
             )
         }

@@ -7,6 +7,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.ringmydevice.data.datastore.appDataStore
+import com.github.ringmydevice.data.model.AppLogEntry
+import com.github.ringmydevice.data.model.LogCategory
+import com.github.ringmydevice.data.model.LogLevel
+import com.github.ringmydevice.di.AppGraph
 import com.github.ringmydevice.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
@@ -94,15 +98,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     // write Data
     fun setRingEnabled(value: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[RING_ENABLED] = value } }
+        viewModelScope.launch {
+            dataStore.edit { it[RING_ENABLED] = value }
+            logSetting("Ring enabled", value.toString())
+        }
     }
 
     fun setLocationEnabled(value: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[LOCATION_ENABLED] = value } }
+        viewModelScope.launch {
+            dataStore.edit { it[LOCATION_ENABLED] = value }
+            logSetting("Location enabled", value.toString())
+        }
     }
 
     fun setPhotoEnabled(value: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[PHOTO_ENABLED] = value } }
+        viewModelScope.launch {
+            dataStore.edit { it[PHOTO_ENABLED] = value }
+            logSetting("Photo enabled", value.toString())
+        }
     }
 
     fun saveTextSettings(number: String, secret: String) {
@@ -115,50 +128,97 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setRmdPinEnabled(enabled: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[RMD_PIN_ENABLED] = enabled } }
+        viewModelScope.launch {
+            dataStore.edit { it[RMD_PIN_ENABLED] = enabled }
+            logSetting("PIN enabled", enabled.toString())
+        }
     }
 
     fun setRmdPin(pin: String) {
-        viewModelScope.launch { dataStore.edit { it[RMD_PIN] = pin } }
+        viewModelScope.launch {
+            dataStore.edit { it[RMD_PIN] = pin }
+            logSetting("PIN updated", if (pin.isBlank()) "(cleared)" else "(updated)")
+        }
     }
 
     fun setRmdCommand(command: String) {
-        viewModelScope.launch { dataStore.edit { it[RMD_COMMAND] = command } }
+        viewModelScope.launch {
+            dataStore.edit { it[RMD_COMMAND] = command }
+            logSetting("Base command", command)
+        }
     }
 
     fun setRmdRingtone(uri: String) {
-        viewModelScope.launch { dataStore.edit { it[RMD_RINGTONE] = uri } }
+        viewModelScope.launch {
+            dataStore.edit { it[RMD_RINGTONE] = uri }
+            logSetting("Ringtone", if (uri.isBlank()) "(default)" else uri)
+        }
     }
 
     fun setRmdLockMessage(message: String) {
-        viewModelScope.launch { dataStore.edit { it[RMD_LOCK_MESSAGE] = message } }
+        viewModelScope.launch {
+            dataStore.edit { it[RMD_LOCK_MESSAGE] = message }
+            logSetting("Lock message", if (message.isBlank()) "(cleared)" else message)
+        }
     }
 
     fun setSmsFeedbackEnabled(enabled: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[SEND_SMS_FEEDBACK] = enabled } }
+        viewModelScope.launch {
+            dataStore.edit { it[SEND_SMS_FEEDBACK] = enabled }
+            logSetting("SMS feedback", enabled.toString())
+        }
     }
 
     fun setThemePreference(preference: ThemePreference) {
-        viewModelScope.launch { dataStore.edit { it[THEME_PREFERENCE] = preference.name } }
+        viewModelScope.launch {
+            dataStore.edit { it[THEME_PREFERENCE] = preference.name }
+            logSetting("Theme preference", preference.name)
+        }
     }
 
     fun setUseDynamicColor(enabled: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[USE_DYNAMIC_COLOR] = enabled } }
+        viewModelScope.launch {
+            dataStore.edit { it[USE_DYNAMIC_COLOR] = enabled }
+            logSetting("Dynamic color", enabled.toString())
+        }
     }
 
     fun setFmdServerUrl(url: String) {
-        viewModelScope.launch { dataStore.edit { it[FMD_SERVER_URL] = url } }
+        viewModelScope.launch {
+            dataStore.edit { it[FMD_SERVER_URL] = url }
+            logSetting("Server URL", if (url.isBlank()) "(cleared)" else url)
+        }
     }
 
     fun setFmdAccessToken(token: String) {
-        viewModelScope.launch { dataStore.edit { it[FMD_ACCESS_TOKEN] = token } }
+        viewModelScope.launch {
+            dataStore.edit { it[FMD_ACCESS_TOKEN] = token }
+            logSetting("Server access token", if (token.isBlank()) "(cleared)" else "(updated)")
+        }
     }
 
     fun setFmdUploadWhenOnline(enabled: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[FMD_UPLOAD_WHEN_ONLINE] = enabled } }
+        viewModelScope.launch {
+            dataStore.edit { it[FMD_UPLOAD_WHEN_ONLINE] = enabled }
+            logSetting("Upload when online", enabled.toString())
+        }
     }
 
     fun setOpenCellIdToken(token: String) {
-        viewModelScope.launch { dataStore.edit { it[OPEN_CELL_ID_TOKEN] = token } }
+        viewModelScope.launch {
+            dataStore.edit { it[OPEN_CELL_ID_TOKEN] = token }
+            logSetting("OpenCelliD token", if (token.isBlank()) "(cleared)" else "(updated)")
+        }
+    }
+
+    private suspend fun logSetting(name: String, value: String) {
+        AppGraph.logsRepo.log(
+            AppLogEntry(
+                level = LogLevel.INFO,
+                tag = "Settings",
+                message = "$name -> $value",
+                category = LogCategory.SETTINGS
+            )
+        )
     }
 }

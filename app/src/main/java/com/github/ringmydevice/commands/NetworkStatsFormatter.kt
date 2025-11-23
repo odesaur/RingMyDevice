@@ -62,6 +62,7 @@ object NetworkStatsFormatter {
     }
 
     @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION")
     private fun appendWifiNetworks(context: Context, builder: StringBuilder): Boolean {
         builder.append("Wifi networks:\n")
         val wifiManager = context.applicationContext.getSystemService(WifiManager::class.java)
