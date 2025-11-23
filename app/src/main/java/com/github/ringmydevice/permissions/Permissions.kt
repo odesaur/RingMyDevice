@@ -18,9 +18,20 @@ object Permissions {
     fun has(ctx: Context, perm: String): Boolean =
         ActivityCompat.checkSelfPermission(ctx, perm) == PackageManager.PERMISSION_GRANTED
 
+    fun hasLocationPermission(ctx: Context): Boolean {
+        val fine = has(ctx, Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarse = has(ctx, Manifest.permission.ACCESS_COARSE_LOCATION)
+        return fine || coarse
+    }
+
+    fun hasNearbyWifiPermission(ctx: Context): Boolean =
+        requiredForNearbyWifi()?.let { has(ctx, it) } ?: true
+
     fun requiredForBluetoothConnect(): String =
         if (Build.VERSION.SDK_INT >= 31) Manifest.permission.BLUETOOTH_CONNECT else Manifest.permission.BLUETOOTH
     fun requiredForFineLocation(): String = Manifest.permission.ACCESS_FINE_LOCATION
+    fun requiredForNearbyWifi(): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.NEARBY_WIFI_DEVICES else null
     fun requiredForCamera(): String = Manifest.permission.CAMERA
     fun requiredForSmsReceive(): String = Manifest.permission.RECEIVE_SMS
     fun requiredForSmsSend(): String = Manifest.permission.SEND_SMS

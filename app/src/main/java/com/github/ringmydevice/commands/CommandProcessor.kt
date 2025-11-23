@@ -9,8 +9,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.media.AudioManager
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -108,7 +106,13 @@ object CommandProcessor {
             }
 
             logResult(sender, result)
-            if (trustedForFeedback && feedbackEnabled) {
+            val forceFeedbackCommands = setOf(CommandId.STATS, CommandId.HELP, CommandId.LOCATE)
+            val shouldSendFeedback = trustedForFeedback && (
+                source == CommandSource.SMS ||
+                    feedbackEnabled ||
+                    result.commandId in forceFeedbackCommands
+                )
+            if (shouldSendFeedback) {
                 sendFeedbackForCommand(appContext, sender, baseCommand, args, result)
             }
         }.onFailure {
@@ -226,26 +230,15 @@ object CommandProcessor {
     }
 
     private suspend fun dispatchStats(context: Context, source: CommandSource): CommandExecutionResult {
-        val cm = context.getSystemService(ConnectivityManager::class.java)
-        val network = cm?.activeNetwork
-        val capabilities = network?.let { cm.getNetworkCapabilities(it) }
-        val builder = StringBuilder()
-        builder.append("Metered: ${cm?.isActiveNetworkMetered ?: false}\n")
-        if (capabilities != null) {
-            builder.append("Capabilities: ")
-            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) builder.append("Wi-Fi ")
-            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) builder.append("Cell ")
-            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH)) builder.append("BT ")
-            builder.append("\n")
-            builder.append("Bandwidth: down=${capabilities.linkDownstreamBandwidthKbps}kbps up=${capabilities.linkUpstreamBandwidthKbps}kbps")
-        }
-        val message = builder.toString().ifBlank { "No network data" }
-        notifyUser(context, source, message)
+        val report = NetworkStatsFormatter.buildReport(context)
+        notifyUser(context, source, report.message)
+        val status = if (report.permissionMissing) CommandStatus.PERMISSION_MISSING else CommandStatus.SUCCESS
+        val notes = if (report.permissionMissing) "stats provided (permission missing)" else "stats provided"
         return CommandExecutionResult(
             CommandId.STATS,
-            CommandStatus.SUCCESS,
-            feedbackMessage = message,
-            logNotes = "stats provided"
+            status = status,
+            feedbackMessage = report.message,
+            logNotes = notes
         )
     }
 
