@@ -11,11 +11,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -100,18 +100,27 @@ fun LogsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             val filtered = logs.filter { selectedCategory.value == null || it.category == selectedCategory.value }
                 .sortedByDescending { it.timeMillis }
             items(filtered) { log ->
-                ElevatedCard {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(log.tag, style = MaterialTheme.typography.titleSmall)
-                        Text(log.message, style = MaterialTheme.typography.bodyMedium)
-                        Text(log.category.name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        Text(
-                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
-                                .format(Date(log.timeMillis)),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "${log.tag} · ${log.category.name}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = log.message,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(Date(log.timeMillis)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+                Divider()
             }
         }
     }
