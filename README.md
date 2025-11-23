@@ -19,8 +19,5 @@
 
 ```
 
-## Live contributors chart
-
-![Contributors](https://contrib.rocks/image?repo=odesaur/RingMyDevice)
-
-> This image is served by contrib.rocks and updates automatically based on the GitHub repo history.
+## Repository Statistics
+![Alt](https://repobeats.axiom.co/api/embed/6282226d6e03b821236ca2ae56f435bffed3d46a.svg "Repobeats analytics image")
