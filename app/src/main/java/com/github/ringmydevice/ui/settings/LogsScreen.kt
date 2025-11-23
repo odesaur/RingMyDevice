@@ -120,7 +120,7 @@ fun LogsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Divider()
+                androidx.compose.material3.HorizontalDivider()
             }
         }
     }

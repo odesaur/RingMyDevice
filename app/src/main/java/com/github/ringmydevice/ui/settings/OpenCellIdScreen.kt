@@ -81,7 +81,7 @@ fun OpenCellIdScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewMode
             ) {
                 Text("Open OpenCelliD website")
             }
-            Divider()
+            androidx.compose.material3.HorizontalDivider()
             Text(
                 "Contribute by collecting and uploading tower information. Tower Collector is one option available on F-Droid.",
                 style = MaterialTheme.typography.bodyMedium

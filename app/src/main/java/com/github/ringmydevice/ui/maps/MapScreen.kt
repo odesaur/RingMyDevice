@@ -176,6 +176,7 @@ private data class CellParams(
         "https://opencellid.org/cell/get?key=$token&mcc=$mcc&mnc=$mnc&lac=$lac&cellid=$cellId&radio=${radio}&format=json"
 }
 
+@Suppress("DEPRECATION")
 private fun CellInfo.buildParams(): CellParams? {
     val id: CellIdentity = when (this) {
         is android.telephony.CellInfoLte -> cellIdentity

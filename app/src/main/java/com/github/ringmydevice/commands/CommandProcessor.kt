@@ -248,6 +248,7 @@ object CommandProcessor {
         )
     }
 
+    @Suppress("DEPRECATION")
     private suspend fun dispatchGps(
         context: Context,
         args: List<String>,
