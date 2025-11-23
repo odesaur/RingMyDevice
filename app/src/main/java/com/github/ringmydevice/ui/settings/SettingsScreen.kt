@@ -50,7 +50,7 @@ fun SettingsScreen(
 ) {
     val items = listOf(
         SettingRow("General", icon = Icons.Outlined.Settings, onClick = onOpenGeneral),
-        SettingRow("FMD Server", icon = Icons.Outlined.Public, onClick = onOpenServer),
+        SettingRow("RMD Server", icon = Icons.Outlined.Public, onClick = onOpenServer),
         SettingRow("Allowed contacts", icon = Icons.Outlined.People, onClick = onOpenAllowedContacts),
         SettingRow("OpenCelliD", icon = Icons.Outlined.Map, onClick = onOpenOpenCellId),
         SettingRow("Appearance", icon = Icons.Outlined.Palette, onClick = onOpenAppearance),

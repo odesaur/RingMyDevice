@@ -34,6 +34,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val FMD_SERVER_URL = stringPreferencesKey("fmd_server_url")
         val FMD_ACCESS_TOKEN = stringPreferencesKey("fmd_access_token")
         val FMD_UPLOAD_WHEN_ONLINE = booleanPreferencesKey("fmd_upload_when_online")
+        val OPEN_CELL_ID_TOKEN = stringPreferencesKey("open_cell_id_token")
     }
 
     // read fata
@@ -86,6 +87,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val fmdUploadWhenOnline = dataStore.data
         .map { it[FMD_UPLOAD_WHEN_ONLINE] ?: true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val openCellIdToken = dataStore.data
+        .map { it[OPEN_CELL_ID_TOKEN] ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     // write Data
     fun setRingEnabled(value: Boolean) {
@@ -151,5 +156,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setFmdUploadWhenOnline(enabled: Boolean) {
         viewModelScope.launch { dataStore.edit { it[FMD_UPLOAD_WHEN_ONLINE] = enabled } }
+    }
+
+    fun setOpenCellIdToken(token: String) {
+        viewModelScope.launch { dataStore.edit { it[OPEN_CELL_ID_TOKEN] = token } }
     }
 }
