@@ -3,6 +3,8 @@ package com.github.ringmydevice.di
 import android.content.Context
 import com.github.ringmydevice.data.repo.AllowedContactsRepository
 import com.github.ringmydevice.data.repo.CommandRepository
+import com.github.ringmydevice.data.repo.FileLogsRepository
+import com.github.ringmydevice.data.repo.LogsRepository
 import com.github.ringmydevice.data.repo.SettingsRepository
 
 /**
@@ -23,6 +25,7 @@ object AppGraph {
 
     // IMPORTANT: single instance so writers/readers see the same logs
     val commandRepo: CommandRepository by lazy { CommandRepository.fake() }
+    val logsRepo: LogsRepository by lazy { FileLogsRepository(requireContext()) }
     val allowedRepo: AllowedContactsRepository by lazy { AllowedContactsRepository.getInstance(requireContext()) }
     val settingsRepo: SettingsRepository by lazy { SettingsRepository.getInstance(requireContext()) }
 }
