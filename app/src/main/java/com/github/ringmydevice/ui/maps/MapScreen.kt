@@ -6,8 +6,8 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.telephony.CellIdentity
-import android.telephony.CellIdentityCdma
 import android.telephony.CellIdentityGsm
+import android.telephony.CellIdentityCdma
 import android.telephony.CellIdentityLte
 import android.telephony.CellIdentityNr
 import android.telephony.CellIdentityWcdma

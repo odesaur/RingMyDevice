@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
@@ -74,6 +75,7 @@ fun AllowedContactsScreen(
     var showDialog by remember { mutableStateOf(false) }
     var dialogName by remember { mutableStateOf("") }
     var dialogPhone by remember { mutableStateOf("") }
+    var showClearConfirm by remember { mutableStateOf(false) }
 
     fun openDialog(name: String = "", phone: String = "") {
         dialogName = name
@@ -144,14 +146,11 @@ fun AllowedContactsScreen(
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = {
-                            vm.clear()
-                            scope.launch { snackbarHostState.showSnackbar("Cleared allowed list") }
-                        },
+                    IconButton(
+                        onClick = { showClearConfirm = true },
                         enabled = contacts.isNotEmpty()
                     ) {
-                        Text("Clear all", color = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Filled.DeleteForever, contentDescription = "Clear all")
                     }
                 }
             )
@@ -213,8 +212,10 @@ fun AllowedContactsScreen(
                         contacts,
                         key = { _, contact -> contact.phoneNumber.filter { it.isDigit() } + contact.name }
                     ) { idx, contact ->
+                        val formatted = vm.displayNumber(contact.phoneNumber)
                         AllowedContactRow(
                             contact = contact,
+                            formattedNumber = formatted,
                             onRemove = { vm.removeAt(idx) }
                         )
                     }
@@ -279,10 +280,28 @@ fun AllowedContactsScreen(
             }
         )
     }
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            title = { Text("Clear allowed contacts?") },
+            text = { Text("Are you sure you want to remove all allowed contacts?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showClearConfirm = false
+                    vm.clear()
+                    scope.launch { snackbarHostState.showSnackbar("Cleared allowed list") }
+                }) { Text("Clear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
-private fun AllowedContactRow(contact: AllowedContact, onRemove: () -> Unit) {
+private fun AllowedContactRow(contact: AllowedContact, formattedNumber: String, onRemove: () -> Unit) {
     ElevatedCard(
         colors = CardDefaults.elevatedCardColors()
     ) {
@@ -298,13 +317,11 @@ private fun AllowedContactRow(contact: AllowedContact, onRemove: () -> Unit) {
                     text = if (contact.name.isNotBlank()) contact.name else contact.phoneNumber,
                     style = MaterialTheme.typography.titleSmall
                 )
-                if (contact.name.isNotBlank()) {
-                    Text(
-                        contact.phoneNumber,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    formattedNumber,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             IconButton(onClick = onRemove) {
                 Icon(Icons.Filled.Delete, contentDescription = "Remove")

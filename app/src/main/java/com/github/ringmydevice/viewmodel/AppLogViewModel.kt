@@ -24,4 +24,19 @@ class AppLogViewModel(
 
     fun filter(category: LogCategory?): List<AppLogEntry> =
         _logs.value.filter { category == null || it.category == category }
+
+    fun export(contentResolver: android.content.ContentResolver, uri: android.net.Uri, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val result = repo.exportAll(contentResolver, uri)
+            onComplete(result)
+        }
+    }
+
+    fun clear(onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val result = repo.clear()
+            refresh()
+            onComplete(result)
+        }
+    }
 }
