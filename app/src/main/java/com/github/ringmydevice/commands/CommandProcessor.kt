@@ -59,7 +59,7 @@ object CommandProcessor {
 
             var index = 1
             val allowedRepo = AppGraph.allowedRepo
-            val requiresTrustCheck = source == CommandSource.SMS || source == CommandSource.NOTIFICATION_REPLY
+            val requiresTrustCheck = source == CommandSource.SMS || source == CommandSource.NOTIFICATION_REPLY || source == CommandSource.MESHTASTIC
             var authorized = !requiresTrustCheck
             var trustedForFeedback = false
             if (requiresTrustCheck) {
