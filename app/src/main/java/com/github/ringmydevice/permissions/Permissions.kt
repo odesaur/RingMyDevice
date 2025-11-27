@@ -43,6 +43,13 @@ object Permissions {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         return nm.isNotificationPolicyAccessGranted
     }
+    fun hasCameraPermission(ctx: Context): Boolean =
+        has(ctx, Manifest.permission.CAMERA)
+
+    fun hasNotificationPermission(ctx: Context): Boolean {
+        val required = requiredForPostNotifications() ?: return true
+        return has(ctx, required)
+    }
     fun openDndAccessSettings(ctx: Context) {
         ctx.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
@@ -53,5 +60,22 @@ object Permissions {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         ctx.startActivity(i)
+    }
+    fun openNotificationSettings(ctx: Context) {
+        val intent = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                }
+            }
+            else -> {
+                Intent("android.settings.APP_NOTIFICATION_SETTINGS").apply {
+                    putExtra("app_package", ctx.packageName)
+                    putExtra("app_uid", ctx.applicationInfo.uid)
+                }
+            }
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        ctx.startActivity(intent)
     }
 }

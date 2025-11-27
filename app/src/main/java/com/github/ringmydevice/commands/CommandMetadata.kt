@@ -9,6 +9,7 @@ enum class CommandId {
     LOCATE,
     LOCK,
     HELP,
+    CAMERA,
     UNKNOWN
 }
 
@@ -91,6 +92,14 @@ object CommandRegistry {
             description = "Send a list of available commands.",
             requiredPermissions = emptyList(),
             smsExample = "help"
+        ),
+        CommandMetadata(
+            id = CommandId.CAMERA,
+            syntax = "camera [front | back]",
+            summary = "Take a photo",
+            description = "Take a photo using the front or back camera and send it via MMS.",
+            requiredPermissions = listOf("Camera"),
+            smsExample = "camera front"
         )
     )
 }

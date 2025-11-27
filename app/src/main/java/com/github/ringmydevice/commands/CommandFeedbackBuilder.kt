@@ -15,6 +15,7 @@ object CommandFeedbackBuilder {
             CommandId.LOCATE -> result.feedbackMessage ?: "A location request has been triggered."
             CommandId.LOCK -> result.feedbackMessage ?: "The device has been locked."
             CommandId.HELP -> result.feedbackMessage ?: CommandHelpResponder.buildHelpMessageFromCommands(baseCommand)
+            CommandId.CAMERA -> buildCameraFeedback(result)
             CommandId.UNKNOWN -> result.feedbackMessage
         }?.let { messageForStatus(result, it, args) }
     }
@@ -41,6 +42,19 @@ object CommandFeedbackBuilder {
             "The device should now be ringing."
         } else {
             result.feedbackMessage ?: "The ring command could not be executed because required permissions are missing."
+        }
+    }
+
+    private fun buildCameraFeedback(result: CommandExecutionResult): String {
+        return when (result.status) {
+            CommandStatus.SUCCESS ->
+                "Photo has been captured and sent."
+            CommandStatus.PERMISSION_MISSING ->
+                result.feedbackMessage ?: "Camera permissions are missing."
+            CommandStatus.INVALID_ARGUMENTS ->
+                result.feedbackMessage ?: "Camera command requires 'front' or 'back'."
+            else ->
+                result.feedbackMessage ?: "Camera command failed altogether."
         }
     }
 }

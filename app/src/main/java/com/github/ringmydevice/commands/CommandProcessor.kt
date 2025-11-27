@@ -29,6 +29,7 @@ import com.github.ringmydevice.data.repo.SettingsRepository
 import com.github.ringmydevice.di.AppGraph
 import com.github.ringmydevice.permissions.AdminReceiver
 import com.github.ringmydevice.service.RingService
+import com.github.ringmydevice.service.CameraService
 import com.github.ringmydevice.sms.SmsFeedbackSender
 import com.github.ringmydevice.R
 import kotlinx.coroutines.Dispatchers
@@ -103,6 +104,7 @@ object CommandProcessor {
                 CommandId.LOCATE -> dispatchLocate(appContext, args, source)
                 CommandId.LOCK -> dispatchLock(appContext, args, source)
                 CommandId.HELP -> dispatchHelp(appContext, source, baseCommand)
+                CommandId.CAMERA -> dispatchCamera(appContext, sender, args, source)
                 CommandId.UNKNOWN -> CommandExecutionResult(
                     CommandId.UNKNOWN,
                     CommandStatus.INVALID_ARGUMENTS,
@@ -392,6 +394,55 @@ object CommandProcessor {
         )
     }
 
+    private suspend fun dispatchCamera(
+        context: Context,
+        sender: String?,
+        args: List<String>,
+        source: CommandSource
+    ): CommandExecutionResult {
+
+        val facingArg = args.firstOrNull()?.lowercase()
+        val facing = when (facingArg) {
+            "front" -> CameraService.FACING_FRONT
+            "back" -> CameraService.FACING_BACK
+            else -> {
+                val msg = "Camera command requires 'front' or 'back'"
+                notifyUser(context, source, msg)
+                return CommandExecutionResult(
+                    CommandId.CAMERA,
+                    CommandStatus.INVALID_ARGUMENTS,
+                    feedbackMessage = msg,
+                    logNotes = msg
+                )
+            }
+        }
+
+        if (sender.isNullOrBlank()) {
+            val msg = "A valid sender number is required to send a photo."
+            return CommandExecutionResult(
+                CommandId.CAMERA,
+                CommandStatus.FAILURE,
+                feedbackMessage = msg,
+                logNotes = msg
+            )
+        }
+
+        CameraService.enqueueCapture(
+            context = context,
+            sender = sender,
+            facing = facing
+        )
+
+        val msg = "Camera started ($facingArg). MMS will be sent shortly."
+        notifyUser(context, source, msg)
+        return CommandExecutionResult(
+            CommandId.CAMERA,
+            CommandStatus.SUCCESS,
+            feedbackMessage = msg,
+            logNotes = "Queued $facingArg photo for $sender"
+        )
+    }
+
     private suspend fun sendFeedbackForCommand(
         context: Context,
         sender: String?,
@@ -439,6 +490,7 @@ object CommandProcessor {
         "locate" -> CommandId.LOCATE
         "lock" -> CommandId.LOCK
         "help" -> CommandId.HELP
+        "camera" -> CommandId.CAMERA
         else -> CommandId.UNKNOWN
     }
 
@@ -451,6 +503,7 @@ object CommandProcessor {
         CommandId.GPS -> CommandType.GPS
         CommandId.LOCK -> CommandType.LOCK
         CommandId.HELP -> CommandType.HELP
+        CommandId.CAMERA -> CommandType.CAMERA
         CommandId.UNKNOWN -> CommandType.UNKNOWN
     }
 
