@@ -34,6 +34,7 @@ import com.github.ringmydevice.sms.SmsFeedbackSender
 import com.github.ringmydevice.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.github.ringmydevice.util.CameraEligibility
 
 enum class CommandSource { SMS, NOTIFICATION_REPLY, IN_APP, MESHTASTIC }
 
@@ -427,13 +428,23 @@ object CommandProcessor {
             )
         }
 
+        if (!CameraEligibility.canStartCameraFgs(context)) {
+            val failMsg = "Unable to capture photo. Device is locked or the app is not in the foreground."
+            return CommandExecutionResult(
+                CommandId.CAMERA,
+                CommandStatus.FAILURE,
+                feedbackMessage = failMsg,
+                logNotes = "Camera failed (background/locked)"
+            )
+        }
+
         CameraService.enqueueCapture(
             context = context,
             sender = sender,
             facing = facing
         )
 
-        val msg = "Camera started ($facingArg). MMS will be sent shortly."
+        val msg = "Camera started ($facingArg)."
         notifyUser(context, source, msg)
         return CommandExecutionResult(
             CommandId.CAMERA,

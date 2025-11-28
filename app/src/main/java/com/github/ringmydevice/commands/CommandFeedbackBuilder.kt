@@ -48,7 +48,7 @@ object CommandFeedbackBuilder {
     private fun buildCameraFeedback(result: CommandExecutionResult): String {
         return when (result.status) {
             CommandStatus.SUCCESS ->
-                "Photo has been captured and sent."
+                "Photo request has been received."
             CommandStatus.PERMISSION_MISSING ->
                 result.feedbackMessage ?: "Camera permissions are missing."
             CommandStatus.INVALID_ARGUMENTS ->

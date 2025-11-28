@@ -33,6 +33,14 @@
     <uses-permission
         android:name="android.permission.WRITE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <!-- Camera service stuff for taking + saving + sending images -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_SMS" />
     <application
         android:name=".RmdApp"
         android:allowBackup="true"
@@ -88,6 +96,12 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Foreground service used to take + send photos -->
+        <service
+            android:name=".service.CameraService"
+            android:exported="false"
+            android:foregroundServiceType="camera" />
 
         <activity
             android:name=".ui.ringing.RingingActivity"

@@ -97,7 +97,7 @@ object CommandRegistry {
             id = CommandId.CAMERA,
             syntax = "camera [front | back]",
             summary = "Take a photo",
-            description = "Take a photo using the front or back camera and send it via MMS.",
+            description = "Take a photo using the front or back camera and send it via SMS.",
             requiredPermissions = listOf("Camera"),
             smsExample = "camera front"
         )
