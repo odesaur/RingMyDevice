@@ -9,12 +9,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
@@ -102,7 +100,6 @@ object CommandProcessor {
                 }
                 CommandId.RINGER_MODE -> dispatchRingerMode(appContext, args, source)
                 CommandId.STATS -> dispatchStats(appContext, source)
-                CommandId.GPS -> dispatchGps(appContext, args, source)
                 CommandId.LOCATE -> dispatchLocate(appContext, args, source)
                 CommandId.CAMERA -> dispatchCamera(appContext, args, source)
                 CommandId.LOCK -> dispatchLock(appContext, args, source)
@@ -252,51 +249,12 @@ object CommandProcessor {
         )
     }
 
-    @Suppress("DEPRECATION")
-    private suspend fun dispatchGps(
-        context: Context,
-        args: List<String>,
-        source: CommandSource
-    ): CommandExecutionResult {
-        val target = args.firstOrNull()?.lowercase()
-        if (target == null) {
-            val msg = "GPS command requires on/off"
-            notifyUser(context, source, msg)
-            return CommandExecutionResult(
-                CommandId.GPS,
-                CommandStatus.INVALID_ARGUMENTS,
-                feedbackMessage = msg,
-                logNotes = "gps failed - missing arg"
-            )
-        }
-        val canWriteSettings = canModifyLocationMode(context)
-        val mode = when (target) {
-            "on" -> Settings.Secure.LOCATION_MODE_HIGH_ACCURACY
-            "off" -> Settings.Secure.LOCATION_MODE_OFF
-            else -> Settings.Secure.LOCATION_MODE_HIGH_ACCURACY
-        }
-        @Suppress("DEPRECATION")
-        val success = canWriteSettings && Settings.Secure.putInt(context.contentResolver, Settings.Secure.LOCATION_MODE, mode)
-        val msg = when {
-            success -> "GPS ${if (target == "off") "disabled" else "enabled"}"
-            !canWriteSettings -> "Android prevents changing GPS mode; please adjust in system settings."
-            else -> "Unable to modify GPS"
-        }
-        notifyUser(context, source, msg)
-        return CommandExecutionResult(
-            CommandId.GPS,
-            status = if (success) CommandStatus.SUCCESS else CommandStatus.FAILURE,
-            feedbackMessage = msg,
-            logNotes = msg
-        )
-    }
-
     private suspend fun dispatchLocate(
         context: Context,
         args: List<String>,
         source: CommandSource
     ): CommandExecutionResult {
-        val locationManager = context.getSystemService(LocationManager::class.java)
+        val locationManager = context.getSystemService(android.location.LocationManager::class.java)
         if (locationManager == null) {
             val msg = "Location service unavailable"
             notifyUser(context, source, msg)
@@ -326,8 +284,8 @@ object CommandProcessor {
             )
         }
         val providers = when (args.firstOrNull()?.lowercase()) {
-            "gps" -> listOf(LocationManager.GPS_PROVIDER)
-            "cell" -> listOf(LocationManager.NETWORK_PROVIDER)
+            "gps" -> listOf(android.location.LocationManager.GPS_PROVIDER)
+            "cell" -> listOf(android.location.LocationManager.NETWORK_PROVIDER)
             else -> locationManager.allProviders
         }
         val builder = StringBuilder()
@@ -488,7 +446,6 @@ object CommandProcessor {
         "ring", "ringlong", "ring-long" -> CommandId.RING
         "ringermode" -> CommandId.RINGER_MODE
         "stats" -> CommandId.STATS
-        "gps" -> CommandId.GPS
         "locate" -> CommandId.LOCATE
         "camera", "photo" -> CommandId.CAMERA
         "lock" -> CommandId.LOCK
@@ -502,7 +459,6 @@ object CommandProcessor {
         CommandId.NODISTURB -> CommandType.NODISTURB
         CommandId.RINGER_MODE -> CommandType.RINGER_MODE
         CommandId.STATS -> CommandType.STATS
-        CommandId.GPS -> CommandType.GPS
         CommandId.CAMERA -> CommandType.PHOTO
         CommandId.LOCK -> CommandType.LOCK
         CommandId.HELP -> CommandType.HELP
@@ -516,14 +472,6 @@ object CommandProcessor {
             feedbackMessage = "Unauthorized sender",
             logNotes = "Unauthorized sender"
         )
-}
-
-private fun canModifyLocationMode(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        Settings.System.canWrite(context)
-    } else {
-        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SETTINGS) == PackageManager.PERMISSION_GRANTED
-    }
 }
 
 private fun hasNotificationPermission(context: Context): Boolean {

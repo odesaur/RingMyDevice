@@ -5,7 +5,6 @@ enum class CommandId {
     RING,
     RINGER_MODE,
     STATS,
-    GPS,
     LOCATE,
     CAMERA,
     LOCK,
@@ -59,14 +58,6 @@ object CommandRegistry {
             requiredPermissions = listOf("Location", "Nearby Wi-Fi devices"),
             details = listOf("Wi-Fi needs to be on to list nearby networks."),
             smsExample = "stats"
-        ),
-        CommandMetadata(
-            id = CommandId.GPS,
-            syntax = "gps [on | off]",
-            summary = "Toggle GPS on and off",
-            description = "Turn GPS on or off remotely.",
-            requiredPermissions = listOf("Write to secure settings"),
-            smsExample = "gps on"
         ),
         CommandMetadata(
             id = CommandId.LOCATE,
