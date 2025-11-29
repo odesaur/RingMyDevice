@@ -131,6 +131,36 @@ input:focus {
   border-radius: 8px;
   padding: 8px;
   color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.picture-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--overlay);
+  border-radius: 10px;
+}
+
+.picture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.picture-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.picture-box img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
 }
 
 .footer {

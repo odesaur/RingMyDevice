@@ -1,6 +1,7 @@
 package com.github.ringmydevice.ui.camera
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -9,6 +10,7 @@ import android.view.Surface
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -23,8 +25,11 @@ import androidx.lifecycle.lifecycleScope
 import com.github.ringmydevice.data.repo.RmdServerRepository
 import com.github.ringmydevice.util.imageToByteArray
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.Date
+import java.util.Locale
 
 class CameraCaptureActivity : ComponentActivity() {
 
@@ -124,10 +129,29 @@ class CameraCaptureActivity : ComponentActivity() {
 
     private fun uploadPhotoAndFinish(imgBytes: ByteArray) {
         lifecycleScope.launch {
+            saveToGallery(imgBytes)
             val success = RmdServerRepository.getInstance().uploadPicture(imgBytes)
             val message = if (success) "Photo uploaded to server." else "Failed to upload photo."
             Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
             finish()
+        }
+    }
+
+    private fun saveToGallery(imgBytes: ByteArray) {
+        runCatching {
+            val resolver = contentResolver
+            val filename = "RMD_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.jpg"
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/RMD")
+                }
+            }
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues) ?: return
+            resolver.openOutputStream(uri)?.use { it.write(imgBytes) }
+        }.onFailure {
+            Toast.makeText(applicationContext, "Saved locally failed: ${it.message}", Toast.LENGTH_SHORT).show()
         }
     }
 

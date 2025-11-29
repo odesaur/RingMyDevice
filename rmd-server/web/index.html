@@ -47,13 +47,28 @@
                     <button type="button" class="btn" id="lock">Lock</button>
                     <button type="button" class="btn" id="cameraFront">Camera Front</button>
                     <button type="button" class="btn" id="cameraBack">Camera Back</button>
-                    <button type="button" class="btn" id="showPicture">Show Picture</button>
+                    <button type="button" class="btn" id="showPicture">Latest Photo</button>
                     <button type="button" class="btn danger" id="delete">Delete Device Command</button>
                     <button type="button" class="btn" id="exportData">Export Data</button>
                     <button type="button" class="btn danger" id="deleteAccount">Delete Account</button>
                 </div>
                 <div id="locationInfo" class="mono"></div>
-                <div id="picture" class="picture-box"></div>
+                <div id="picturePanel" class="picture-panel hidden">
+                    <div class="picture-header">
+                        <div class="label">Photos</div>
+                        <div id="pictureStatus" class="mono"></div>
+                    </div>
+                    <div class="picture-actions">
+                        <button type="button" class="btn" id="picturePrev">Prev</button>
+                        <button type="button" class="btn" id="pictureLatest">Latest</button>
+                        <button type="button" class="btn" id="pictureNext">Next</button>
+                        <button type="button" class="btn" id="pictureDownload">Download</button>
+                    </div>
+                    <div id="pictureBox" class="picture-box">
+                        <div id="pictureEmpty" class="mono">No photo yet.</div>
+                        <img id="pictureImg" class="hidden" alt="Captured photo" />
+                    </div>
+                </div>
             </div>
         </div>
         <div class="footer">

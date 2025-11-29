@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 
 # Build and run rmd-server for local self-hosting.
-# - HTTP on port 8080 (no TLS, so Web UI works best on localhost).
+# - If certs/server.crt + certs/server.key exist, runs HTTPS on 8443 (insecure HTTP disabled).
+# - Otherwise runs HTTP on 8080 (best for localhost testing).
 # - Data persisted in ./rmddata/db on the host.
-# - Rebuilds the Docker image to include the latest web/app assets.
+# - Rebuilds the Docker image to include the latest assets.
 #
-# Registration options:
-# 1) From the Android app: set server URL to http://<your-LAN-IP>:8080, then register/login in-app.
-# 2) From the web UI:
-#    - On the same machine: http://localhost:8080 (WebCrypto is allowed on localhost).
-#    - From another device over HTTP, the browser may block WebCrypto; use the app instead or enable an insecure-origin exception in your browser if needed.
+# To generate TLS certs (self-signed) first:
+#   cd certs && ./cert_gen.sh <LAN_IP_or_hostname>
+# Then re-run this script; it will detect the certs and start HTTPS on 8443.
 
 set -euo pipefail
 
@@ -26,14 +25,33 @@ fi
 echo "Building rmd-server image..."
 docker build -t rmd-server "${SCRIPT_DIR}"
 
-echo "Launching rmd-server..."
-echo "HTTP: http://${IP_ADDR}:8080"
-echo "DB  : ${DB_DIR}"
+CRT="${SCRIPT_DIR}/certs/server.crt"
+KEY="${SCRIPT_DIR}/certs/server.key"
 
-docker run --rm \
-  -p 8080:8080 \
-  -v "${DB_DIR}:/var/lib/rmd-server/db" \
-  -e RMD_DATABASEDIR=/var/lib/rmd-server/db \
-  -e RMD_PORTINSECURE=8080 \
-  -e RMD_PORTSECURE=-1 \
-  rmd-server
+if [[ -f "${CRT}" && -f "${KEY}" ]]; then
+  echo "Launching rmd-server with HTTPS (certs found)."
+  echo "HTTPS: https://${IP_ADDR}:8443"
+  echo "DB   : ${DB_DIR}"
+  docker run --rm \
+    -p 8443:8443 \
+    -v "${DB_DIR}:/var/lib/rmd-server/db" \
+    -v "${CRT}:/etc/rmd-server/server.crt:ro" \
+    -v "${KEY}:/etc/rmd-server/server.key:ro" \
+    -e RMD_DATABASEDIR=/var/lib/rmd-server/db \
+    -e RMD_PORTSECURE=8443 \
+    -e RMD_PORTINSECURE=-1 \
+    -e RMD_SERVERCRT=/etc/rmd-server/server.crt \
+    -e RMD_SERVERKEY=/etc/rmd-server/server.key \
+    rmd-server
+else
+  echo "Launching rmd-server over HTTP (no certs found)."
+  echo "HTTP: http://${IP_ADDR}:8080"
+  echo "DB  : ${DB_DIR}"
+  docker run --rm \
+    -p 8080:8080 \
+    -v "${DB_DIR}:/var/lib/rmd-server/db" \
+    -e RMD_DATABASEDIR=/var/lib/rmd-server/db \
+    -e RMD_PORTINSECURE=8080 \
+    -e RMD_PORTSECURE=-1 \
+    rmd-server
+fi

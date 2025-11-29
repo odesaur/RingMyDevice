@@ -23,20 +23,19 @@ docker run --rm -p 8080:8080 -v "$(pwd)/rmddata/db/:/var/lib/rmd-server/db/" rmd
 ```
 
 ### Optional TLS
-- Generate a self-signed cert (replace LAN_IP):  
-  `openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/server.key -out certs/server.crt -days 365 -subj "/CN=<LAN_IP>"`
-- Run HTTPS:  
-```bash
-docker run --rm \
-  -p 8443:8443 \
-  -v "$(pwd)/rmddata/db:/var/lib/rmd-server/db" \
-  -v "$(pwd)/certs/server.crt:/etc/rmd-server/server.crt:ro" \
-  -v "$(pwd)/certs/server.key:/etc/rmd-server/server.key:ro" \
-  -e RMD_PORTSECURE=8443 -e RMD_PORTINSECURE=-1 \
-  -e RMD_SERVERCRT=/etc/rmd-server/server.crt -e RMD_SERVERKEY=/etc/rmd-server/server.key \
-  rmd-server
-```
-Then open `https://<LAN_IP>:8443` and accept the cert. Use HTTPS on non-localhost if you want WebCrypto in browsers.
+- Generate a self-signed cert: `cd certs && ./cert_gen.sh <LAN_IP_or_hostname>`
+- Then run HTTPS (after certs exist):
+  ```bash
+  docker run --rm \
+    -p 8443:8443 \
+    -v "$(pwd)/rmddata/db:/var/lib/rmd-server/db" \
+    -v "$(pwd)/certs/server.crt:/etc/rmd-server/server.crt:ro" \
+    -v "$(pwd)/certs/server.key:/etc/rmd-server/server.key:ro" \
+    -e RMD_PORTSECURE=8443 -e RMD_PORTINSECURE=-1 \
+    -e RMD_SERVERCRT=/etc/rmd-server/server.crt -e RMD_SERVERKEY=/etc/rmd-server/server.key \
+    rmd-server
+  ```
+  Then open `https://<LAN_IP_or_hostname>:8443` and accept the cert. Use HTTPS on non-localhost if you want WebCrypto in browsers.
 
 ## Paths (defaults)
 Config: `./config.yml`  
