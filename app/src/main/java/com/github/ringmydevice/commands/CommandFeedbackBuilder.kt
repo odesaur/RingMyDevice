@@ -13,6 +13,7 @@ object CommandFeedbackBuilder {
             CommandId.STATS -> result.feedbackMessage ?: "Network statistics have been requested. You will receive them shortly."
             CommandId.GPS -> result.feedbackMessage ?: "GPS settings have been updated."
             CommandId.LOCATE -> result.feedbackMessage ?: "A location request has been triggered."
+            CommandId.CAMERA -> result.feedbackMessage ?: "A photo request has been triggered."
             CommandId.LOCK -> result.feedbackMessage ?: "The device has been locked."
             CommandId.HELP -> result.feedbackMessage ?: CommandHelpResponder.buildHelpMessageFromCommands(baseCommand)
             CommandId.UNKNOWN -> result.feedbackMessage

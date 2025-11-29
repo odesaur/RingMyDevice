@@ -1,5 +1,6 @@
 package com.github.ringmydevice.ui.commands
 
+import android.app.Activity
 import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.GpsFixed
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.ToggleOff
@@ -50,6 +52,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -176,6 +179,7 @@ private fun permissionStateFor(id: CommandId): CommandPermissionUiState =
         CommandId.STATS -> rememberStatsPermissionState()
         CommandId.GPS -> rememberSecureSettingsPermissionState()
         CommandId.LOCATE -> rememberLocatePermissionState()
+        CommandId.CAMERA -> rememberCameraPermissionState()
         CommandId.LOCK -> rememberLockPermissionState()
         CommandId.HELP, CommandId.UNKNOWN -> CommandPermissionUiState(requiredEntries = emptyList(), onGrantClick = {})
     }
@@ -382,6 +386,37 @@ private fun rememberLocatePermissionState(): CommandPermissionUiState {
 }
 
 @Composable
+private fun rememberCameraPermissionState(): CommandPermissionUiState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val requestPermission = rememberPermissionRequester { }
+    var cameraGranted by remember { mutableStateOf(Permissions.has(context, Permissions.requiredForCamera())) }
+
+    val refresh = { cameraGranted = Permissions.has(context, Permissions.requiredForCamera()) }
+    LaunchedEffect(Unit) { refresh() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val entries = listOf(PermissionEntry("Camera", cameraGranted))
+    return CommandPermissionUiState(
+        requiredEntries = entries,
+        onGrantClick = {
+            if (cameraGranted) {
+                Permissions.openAppDetails(context)
+            } else {
+                requestPermission(Permissions.requiredForCamera())
+            }
+        },
+        onRevokeClick = { Permissions.openAppDetails(context) }
+    )
+}
+
+@Composable
 private fun rememberLockPermissionState(): CommandPermissionUiState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -439,6 +474,7 @@ private fun commandIcon(id: CommandId): ImageVector =
         CommandId.STATS -> Icons.Outlined.SignalCellularAlt
         CommandId.GPS -> Icons.Outlined.GpsFixed
         CommandId.LOCATE -> Icons.Outlined.Public
+        CommandId.CAMERA -> Icons.Outlined.PhotoCamera
         CommandId.LOCK -> Icons.Outlined.Lock
         CommandId.HELP, CommandId.UNKNOWN -> Icons.Outlined.Info
     }

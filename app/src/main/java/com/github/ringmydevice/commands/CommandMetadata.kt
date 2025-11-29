@@ -7,6 +7,7 @@ enum class CommandId {
     STATS,
     GPS,
     LOCATE,
+    CAMERA,
     LOCK,
     HELP,
     UNKNOWN
@@ -75,6 +76,14 @@ object CommandRegistry {
             requiredPermissions = listOf("Location"),
             optionalPermissions = listOf("Write to secure settings"),
             smsExample = "locate gps"
+        ),
+        CommandMetadata(
+            id = CommandId.CAMERA,
+            syntax = "camera [front | back]",
+            summary = "Take a photo and upload it",
+            description = "Trigger the front or back camera and upload an encrypted photo to the self-hosted server.",
+            requiredPermissions = listOf("Camera"),
+            smsExample = "camera front"
         ),
         CommandMetadata(
             id = CommandId.LOCK,

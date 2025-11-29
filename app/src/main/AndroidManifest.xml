@@ -42,7 +42,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.RingMyDevice">
+        android:theme="@style/Theme.RingMyDevice"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -88,6 +89,11 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <activity
+            android:name=".ui.camera.CameraCaptureActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RingMyDevice" />
 
         <activity
             android:name=".ui.ringing.RingingActivity"

@@ -1,0 +1,185 @@
+package com.github.ringmydevice.data.repo
+
+import android.util.Base64
+import com.github.ringmydevice.di.AppGraph
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+
+/**
+ * Minimal HTTP client for the self-hosted RMD server.
+ * Uses the same API shape as fmd-server (now rmd-server).
+ */
+class RmdServerRepository private constructor(
+    private val settingsRepository: SettingsRepository
+) {
+    companion object {
+        @Volatile
+        private var INSTANCE: RmdServerRepository? = null
+
+        fun getInstance(): RmdServerRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: RmdServerRepository(AppGraph.settingsRepo).also { INSTANCE = it }
+            }
+        }
+    }
+
+    suspend fun fetchPendingCommand(): String? = withContext(Dispatchers.IO) {
+        val config = settingsRepository.getServerConfig() ?: return@withContext null
+        val payload = JSONObject().apply {
+            put("IDT", config.accessToken)
+            put("Data", "")
+        }
+        val url = URL("${config.baseUrl}/api/v1/command")
+        val response = executeJsonRequest(url, payload, "PUT") ?: return@withContext null
+        val data = response.optString("Data", "")
+        if (data.isBlank()) null else data
+    }
+
+    suspend fun clearPendingCommand() = withContext(Dispatchers.IO) {
+        val config = settingsRepository.getServerConfig() ?: return@withContext
+        val payload = JSONObject().apply {
+            put("IDT", config.accessToken)
+            put("Data", "")
+            put("UnixTime", 0)
+            put("CmdSig", "")
+        }
+        val url = URL("${config.baseUrl}/api/v1/command")
+        executeJsonRequest(url, payload, "POST")
+    }
+
+    suspend fun uploadPicture(imageBytes: ByteArray): Boolean = withContext(Dispatchers.IO) {
+        val config = settingsRepository.getServerConfig() ?: return@withContext false
+        val payload = JSONObject().apply {
+            put("IDT", config.accessToken)
+            put("Data", Base64.encodeToString(imageBytes, Base64.NO_WRAP))
+        }
+        val url = URL("${config.baseUrl}/api/v1/picture")
+        val response = executeJsonRequest(url, payload, "PUT")
+        response != null
+    }
+
+    suspend fun getServerVersion(baseUrl: String): String? = withContext(Dispatchers.IO) {
+        val url = URL("${baseUrl.trimEnd('/')}/api/v1/version")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 10_000
+            readTimeout = 10_000
+        }
+        return@withContext try {
+            val code = connection.responseCode
+            if (code !in 200..299) return@withContext null
+            connection.inputStream?.use { input ->
+                val body = BufferedReader(InputStreamReader(input)).readText()
+                if (body.isBlank()) null else runCatching { JSONObject(body).optString("version") }.getOrNull()
+            }
+        } catch (_: Exception) {
+            null
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    suspend fun verifyAccessToken(baseUrl: String, token: String): Boolean = withContext(Dispatchers.IO) {
+        val payload = JSONObject().apply {
+            put("IDT", token)
+            put("Data", "")
+        }
+        val url = URL("${baseUrl.trimEnd('/')}/api/v1/command")
+        val response = executeJsonRequest(url, payload, "PUT")
+        response != null
+    }
+
+    private fun executeJsonRequest(url: URL, payload: JSONObject, method: String): JSONObject? {
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = method
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            doInput = true
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+        }
+        return try {
+            connection.outputStream.use { os ->
+                os.write(payload.toString().toByteArray())
+            }
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                return null
+            }
+            connection.inputStream?.use { input ->
+                val body = BufferedReader(InputStreamReader(input)).readText()
+                if (body.isBlank()) null else runCatching { JSONObject(body) }.getOrNull()
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    suspend fun registerDevice(
+        baseUrl: String,
+        requestedId: String,
+        password: String,
+        registrationToken: String
+    ): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = JSONObject().apply {
+                if (requestedId.isNotBlank()) put("RequestedUsername", requestedId)
+                put("PlainPassword", password)
+                if (registrationToken.isNotBlank()) put("RegistrationToken", registrationToken)
+            }
+            val url = URL("${baseUrl.trimEnd('/')}/api/v1/device")
+            val response = executeJsonRequest(url, json, "PUT") ?: return@withContext null
+            response.optString("DeviceId", requestedId.ifBlank { "" })
+        }.getOrNull()
+    }
+
+    suspend fun login(
+        baseUrl: String,
+        userId: String,
+        password: String
+    ): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = JSONObject().apply {
+                put("IDT", userId)
+                put("PlainPassword", password)
+                put("SessionDurationSeconds", 7 * 24 * 60 * 60) // 1 week
+            }
+            val url = URL("${baseUrl.trimEnd('/')}/api/v1/requestAccess")
+            val response = executeJsonRequest(url, json, "PUT") ?: return@withContext null
+            response.optString("Data", "")
+        }.getOrNull()
+    }
+
+    suspend fun deleteAccount(baseUrl: String, accessToken: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = JSONObject().apply {
+                put("IDT", accessToken)
+                put("Data", "")
+            }
+            val url = URL("${baseUrl.trimEnd('/')}/api/v1/device")
+            val response = executeJsonRequest(url, json, "POST")
+            response != null
+        }.getOrDefault(false)
+    }
+
+    suspend fun changePassword(
+        baseUrl: String,
+        accessToken: String,
+        newPassword: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = JSONObject().apply {
+                put("IDT", accessToken)
+                put("PlainPassword", newPassword)
+            }
+            val url = URL("${baseUrl.trimEnd('/')}/api/v1/password")
+            val response = executeJsonRequest(url, json, "POST")
+            response != null
+        }.getOrDefault(false)
+    }
+}

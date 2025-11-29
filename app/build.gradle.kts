@@ -66,4 +66,10 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
+    // CameraX for remote photo capture
+    val cameraxVersion = "1.5.0"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.1.0")
 }
