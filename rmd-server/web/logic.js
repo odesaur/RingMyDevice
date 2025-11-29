@@ -10,6 +10,8 @@ let globalAccessToken = "";
 
 let newestPictureIndex;
 let currentPictureIndex;
+let totalPictures = 0;
+let currentPictureRaw = null;
 
 // Provide a minimal toast fallback when the library is not bundled.
 const Toasted = window.Toasted || class {
@@ -66,7 +68,7 @@ function setupOnClicks() {
         return false;
     });
 
-    const bindings = [
+const bindings = [
         ["locateOlder", () => locateOlder()],
         ["locateNewer", () => locateNewer()],
         ["locate", () => showLocateDropDown()],
@@ -80,6 +82,10 @@ function setupOnClicks() {
         ["cameraFront", () => sendToPhone("camera front")],
         ["cameraBack", () => sendToPhone("camera back")],
         ["showPicture", () => showLatestPicture()],
+        ["pictureLatest", () => showLatestPicture()],
+        ["picturePrev", () => showPreviousPicture()],
+        ["pictureNext", () => showNextPicture()],
+        ["pictureDownload", () => downloadCurrentPicture()],
         ["deleteAccount", () => deleteAccount()],
         ["exportData", () => exportData()]
     ];
@@ -327,6 +333,8 @@ function showAuthedUi() {
     if (lf) lf.classList.add("hidden");
     const idv = document.getElementById("idView");
     if (idv) idv.textContent = currentId || "";
+    const pp = document.getElementById("picturePanel");
+    if (pp) pp.classList.remove("hidden");
 }
 
 async function tryLoginWithHash(rmdid, passwordHash, sessionDurationSeconds) {
@@ -609,6 +617,28 @@ async function showCommandLogs() {
 }
 // Section: Picture
 
+function updatePictureStatus(text) {
+    const el = document.getElementById("pictureStatus");
+    if (el) el.textContent = text || "";
+}
+
+function renderPicture(pictureBase64) {
+    const img = document.getElementById("pictureImg");
+    const empty = document.getElementById("pictureEmpty");
+    if (!img || !empty) return;
+    currentPictureRaw = pictureBase64;
+    if (!pictureBase64) {
+        img.classList.add("hidden");
+        empty.classList.remove("hidden");
+        updatePictureStatus("No photo");
+        return;
+    }
+    img.src = "data:image/jpeg;base64," + pictureBase64;
+    img.classList.remove("hidden");
+    empty.classList.add("hidden");
+    updatePictureStatus(`Image ${currentPictureIndex + 1} of ${totalPictures}`);
+}
+
 async function showLatestPicture() {
     if (!globalAccessToken) {
         console.log("Missing accessToken!");
@@ -633,16 +663,12 @@ async function showLatestPicture() {
     }
     const json = await response.json();
     if (json.Data == "0") {
-        const toasted = new Toasted({
-            position: 'top-center',
-            duration: 3000
-        })
-        toasted.show('No picture available')
+        renderPicture(null);
         return;
     }
-    const newestPictureSize = Number.parseInt(json.Data, 10);
-    newestPictureIndex = newestPictureSize - 1
-    currentPictureIndex = newestPictureSize - 1;
+    totalPictures = Number.parseInt(json.Data, 10);
+    newestPictureIndex = totalPictures - 1;
+    currentPictureIndex = newestPictureIndex;
     await loadPicture(currentPictureIndex);
 }
 
@@ -669,64 +695,48 @@ async function loadPicture(index) {
         throw response.status;
     }
     const data = await response.text();
-    const picture = await parsePicture(globalPrivateKey, data);
-    displaySinglePicture(picture);
+    let picture = null;
+    try {
+        picture = await parsePicture(globalPrivateKey, data);
+    } catch (e) {
+        console.warn("parsePicture failed, falling back to raw", e);
+        picture = data;
+    }
+    renderPicture(picture);
 }
 
-function displaySinglePicture(picture) {
-    const div = document.createElement("div");
-    div.id = "imagePrompt";
-    div.className = "center-column"
+async function showPreviousPicture() {
+    if (totalPictures <= 0) {
+        renderPicture(null);
+        return;
+    }
+    currentPictureIndex -= 1;
+    if (currentPictureIndex < 0) currentPictureIndex = totalPictures - 1;
+    await loadPicture(currentPictureIndex);
+}
 
-    // Picture header
-    const titleDiv = document.createTextNode(`Image ${currentPictureIndex + 1} of ${newestPictureIndex + 1}`)
-    div.appendChild(titleDiv)
+async function showNextPicture() {
+    if (totalPictures <= 0) {
+        renderPicture(null);
+        return;
+    }
+    currentPictureIndex += 1;
+    if (currentPictureIndex >= totalPictures) currentPictureIndex = 0;
+    await loadPicture(currentPictureIndex);
+}
 
-    // Image view
-    const img = document.createElement("img");
-    img.id = "imageFromDevice"
-    img.src = "data:image/jpeg;base64," + picture
-    div.appendChild(img)
-
-    // Button row
-    const buttonDiv = document.createElement("div");
-
-    // Back button
-    const beforeBtn = document.createElement("button");
-    beforeBtn.textContent = "<-"
-    beforeBtn.addEventListener('click', function () {
-        div.remove()
-        currentPictureIndex -= 1;
-        if (currentPictureIndex < 0) {
-            currentPictureIndex = newestPictureIndex;
-        }
-        loadPicture(currentPictureIndex);
-    }, false);
-    buttonDiv.appendChild(beforeBtn)
-
-    // Close button
-    const btn = document.createElement("button");
-    btn.textContent = "close"
-    btn.addEventListener('click', function () {
-        div.remove()
-    }, false);
-    buttonDiv.appendChild(btn)
-
-    // Forward/next button
-    const afterBtn = document.createElement("button");
-    afterBtn.textContent = "->"
-    afterBtn.addEventListener('click', function () {
-        div.remove()
-        currentPictureIndex += 1;
-        if (currentPictureIndex > newestPictureIndex) {
-            currentPictureIndex = 0;
-        }
-        loadPicture(currentPictureIndex);
-    }, false);
-    buttonDiv.appendChild(afterBtn)
-
-    div.appendChild(buttonDiv)
-    document.body.appendChild(div);
+function downloadCurrentPicture() {
+    if (!currentPictureRaw) {
+        const toasted = new Toasted({ position: 'top-center', duration: 2000 });
+        toasted.show('No photo to download');
+        return;
+    }
+    const link = document.createElement('a');
+    link.href = "data:image/jpeg;base64," + currentPictureRaw;
+    link.download = `rmd-photo-${currentPictureIndex + 1}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 }
 
 function displayCommandLogs(logs) {

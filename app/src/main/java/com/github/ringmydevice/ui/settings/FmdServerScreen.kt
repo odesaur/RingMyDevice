@@ -42,6 +42,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -114,15 +117,28 @@ fun FmdServerScreen(
                         scope.launch {
                             val baseUrl = serverUrl.trim().trimEnd('/')
                             val trimmedToken = accessToken.trim()
-                            if (baseUrl.isBlank() || trimmedToken.isBlank()) {
-                                val message = "Enter server URL and access token"
+                            if (baseUrl.isBlank()) {
+                                val message = "Enter server URL"
                                 statusMessage = message
                                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                 return@launch
                             }
                             try {
+                                val reachable = repo.getServerVersion(baseUrl) != null
+                                if (!reachable) {
+                                    val message = "Failed to reach server"
+                                    statusMessage = message
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    return@launch
+                                }
+                                if (trimmedToken.isBlank()) {
+                                    val message = "Server reachable"
+                                    statusMessage = message
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    return@launch
+                                }
                                 val ok = repo.verifyAccessToken(baseUrl, trimmedToken)
-                                val message = if (ok) "Connection OK" else "Failed to verify token/server"
+                                val message = if (ok) "Connection OK" else "Token invalid or expired - log in again"
                                 statusMessage = message
                                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                             } catch (e: Exception) {
@@ -221,6 +237,7 @@ fun FmdServerScreen(
     if (showLoginDialog) {
         LoginDialog(
             initialServerUrl = serverUrl,
+            initialUserId = userId,
             onDismiss = { showLoginDialog = false },
             onLogin = { url, id, password ->
                 scope.launch {
@@ -304,7 +321,9 @@ private fun RegisterDialog(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
-                    singleLine = true
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
                 OutlinedTextField(
                     value = token,
@@ -326,11 +345,12 @@ private fun RegisterDialog(
 @Composable
 private fun LoginDialog(
     initialServerUrl: String,
+    initialUserId: String,
     onDismiss: () -> Unit,
     onLogin: (String, String, String) -> Unit
 ) {
     var serverUrl by remember { mutableStateOf(initialServerUrl) }
-    var userId by remember { mutableStateOf("") }
+    var userId by remember { mutableStateOf(initialUserId) }
     var password by remember { mutableStateOf("") }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
@@ -353,7 +373,9 @@ private fun LoginDialog(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
-                    singleLine = true
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
             }
         },
@@ -381,7 +403,9 @@ private fun ChangePasswordDialog(
                     value = newPassword,
                     onValueChange = { newPassword = it },
                     label = { Text("New Password") },
-                    singleLine = true
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
             }
         },

@@ -64,7 +64,7 @@ class RmdServerRepository private constructor(
             put("Data", Base64.encodeToString(imageBytes, Base64.NO_WRAP))
         }
         val url = URL("${config.baseUrl}/api/v1/picture")
-        val response = executeJsonRequest(url, payload, "PUT")
+        val response = executeJsonRequest(url, payload, "POST")
         response != null
     }
 
@@ -138,8 +138,8 @@ class RmdServerRepository private constructor(
             }
             connection.inputStream?.use { input ->
                 val body = BufferedReader(InputStreamReader(input)).readText()
-                if (body.isBlank()) null else runCatching { JSONObject(body) }.getOrNull()
-            }
+                if (body.isBlank()) JSONObject() else runCatching { JSONObject(body) }.getOrElse { JSONObject() }
+            } ?: JSONObject()
         } finally {
             connection.disconnect()
         }
