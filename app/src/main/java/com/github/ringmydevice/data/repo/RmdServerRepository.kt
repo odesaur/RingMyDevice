@@ -9,6 +9,11 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 
 /**
  * Minimal HTTP client for the self-hosted RMD server.
@@ -65,7 +70,7 @@ class RmdServerRepository private constructor(
 
     suspend fun getServerVersion(baseUrl: String): String? = withContext(Dispatchers.IO) {
         val url = URL("${baseUrl.trimEnd('/')}/api/v1/version")
-        val connection = (url.openConnection() as HttpURLConnection).apply {
+        val connection = (openConnection(url) as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 10_000
             readTimeout = 10_000
@@ -74,8 +79,8 @@ class RmdServerRepository private constructor(
             val code = connection.responseCode
             if (code !in 200..299) return@withContext null
             connection.inputStream?.use { input ->
-                val body = BufferedReader(InputStreamReader(input)).readText()
-                if (body.isBlank()) null else runCatching { JSONObject(body).optString("version") }.getOrNull()
+                val body = BufferedReader(InputStreamReader(input)).readText().trim()
+                if (body.isBlank()) null else body // plain text version string
             }
         } catch (_: Exception) {
             null
@@ -94,8 +99,28 @@ class RmdServerRepository private constructor(
         response != null
     }
 
+    /**
+     * Open a URLConnection. If it is HTTPS, install a permissive trust manager/hostname verifier.
+     * This is intended for self-hosted LAN testing with self-signed certs. Do NOT use for production.
+     */
+    private fun openConnection(url: URL): java.net.URLConnection {
+        val connection = url.openConnection()
+        if (connection is HttpsURLConnection) {
+            val trustAll = arrayOf<TrustManager>(object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>?, authType: String?) {}
+                override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>?, authType: String?) {}
+                override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
+            })
+            val ssl = SSLContext.getInstance("SSL")
+            ssl.init(null, trustAll, java.security.SecureRandom())
+            connection.sslSocketFactory = ssl.socketFactory
+            connection.hostnameVerifier = HostnameVerifier { _, _ -> true }
+        }
+        return connection
+    }
+
     private fun executeJsonRequest(url: URL, payload: JSONObject, method: String): JSONObject? {
-        val connection = (url.openConnection() as HttpURLConnection).apply {
+        val connection = (openConnection(url) as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 15_000
             readTimeout = 15_000

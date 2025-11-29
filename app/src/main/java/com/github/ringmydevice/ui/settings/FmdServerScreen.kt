@@ -460,7 +460,7 @@ private fun PreAuthCard(
                 Text(status, color = Color(0xFF9ccfd8), style = MaterialTheme.typography.bodySmall)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onPing, modifier = Modifier.weight(1f)) { Text("Check server") }
+                OutlinedButton(onClick = onPing, modifier = Modifier.weight(1f)) { Text("Check") }
                 OutlinedButton(onClick = onRegister, modifier = Modifier.weight(1f)) { Text("Register") }
                 Button(onClick = onLogin, modifier = Modifier.weight(1f)) { Text("Login") }
             }
