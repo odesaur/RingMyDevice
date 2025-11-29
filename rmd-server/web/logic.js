@@ -86,6 +86,8 @@ const bindings = [
         ["picturePrev", () => showPreviousPicture()],
         ["pictureNext", () => showNextPicture()],
         ["pictureDownload", () => downloadCurrentPicture()],
+        ["pushSave", () => savePushEndpoint()],
+        ["pushRefresh", () => refreshPushStatus()],
         ["deleteAccount", () => deleteAccount()],
         ["exportData", () => exportData()]
     ];
@@ -335,6 +337,10 @@ function showAuthedUi() {
     if (idv) idv.textContent = currentId || "";
     const pp = document.getElementById("picturePanel");
     if (pp) pp.classList.remove("hidden");
+    const pushPanel = document.getElementById("pushPanel");
+    if (pushPanel) pushPanel.classList.remove("hidden");
+    refreshPushStatus();
+    updatePushStatusFooter();
 }
 
 async function tryLoginWithHash(rmdid, passwordHash, sessionDurationSeconds) {
@@ -399,19 +405,90 @@ async function tokenExpiredRedirect() {
 
 async function setupPushWarning() {
     const pushUrl = await getPushUrl(globalAccessToken);
-
     const ele = document.getElementById("pushWarning");
-    if (pushUrl) {
-        ele.textContent = ""
-    } else {
+    const statusEl = document.getElementById("pushStatus");
+    if (!ele) return;
+    ele.innerHTML = "";
+    if (!pushUrl) {
         ele.innerHTML = `
-            <p>
-                It looks like UnifiedPush is not configured for this device.
-                Without push, RMD Server cannot control the device.
-                See <a href="https://github.com/odesaur/RingMyDevice" target="_blank">the docs</a> for more information.
+            <p class="warning-text">
+                UnifiedPush is not configured for this device.<br/>
+                Open the RMD app and enable push to control the device from this portal.
             </p>
-        `
+        `;
+        if (statusEl) {
+            statusEl.textContent = "Not configured";
+            statusEl.style.color = "#eb6f92";
+        }
+    } else {
+        if (statusEl) {
+            statusEl.textContent = "Configured";
+            statusEl.style.color = "var(--foam)";
+        }
     }
+}
+
+async function refreshPushStatus() {
+    const statusEl = document.getElementById("pushStatus");
+    if (!statusEl || !globalAccessToken) return;
+    try {
+        const pushUrl = await getPushUrl(globalAccessToken);
+        if (pushUrl && pushUrl.trim() !== "") {
+            statusEl.textContent = "Configured";
+            statusEl.style.color = "var(--foam)";
+            const warn = document.getElementById("pushWarning");
+            if (warn) warn.innerHTML = "";
+            updatePushStatusFooter("Configured");
+        } else {
+            statusEl.textContent = "Not configured";
+            statusEl.style.color = "#eb6f92";
+            updatePushStatusFooter("Not configured");
+        }
+    } catch (e) {
+        statusEl.textContent = "Push check failed";
+        statusEl.style.color = "#eb6f92";
+        updatePushStatusFooter("Push check failed");
+    }
+}
+
+function updatePushStatusFooter(text) {
+    const footerEl = document.getElementById("pushStatusFooter");
+    if (!footerEl) return;
+    footerEl.textContent = text || "";
+}
+
+async function savePushEndpoint() {
+    if (!globalAccessToken) {
+        alert("Log in first.");
+        return;
+    }
+    const input = document.getElementById("pushEndpointInput");
+    const msg = document.getElementById("pushSaveMsg");
+    const endpoint = input ? input.value.trim() : "";
+    if (!endpoint) {
+        if (msg) msg.textContent = "Enter an endpoint.";
+        return;
+    }
+    const response = await fetch("api/v1/push", {
+        method: 'POST',
+        body: JSON.stringify({
+            IDT: globalAccessToken,
+            Data: endpoint,
+        }),
+        headers: {
+            'Content-type': 'application/json'
+        }
+    });
+    if (response.status == 401) {
+        tokenExpiredRedirect();
+        return;
+    }
+    if (!response.ok) {
+        if (msg) msg.textContent = "Failed to save endpoint";
+        return;
+    }
+    if (msg) msg.textContent = "Endpoint saved";
+    await refreshPushStatus();
 }
 
 // Section: Locate

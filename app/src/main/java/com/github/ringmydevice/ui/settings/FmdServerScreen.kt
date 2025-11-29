@@ -59,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import com.github.ringmydevice.R
 import android.content.ClipData
 import android.content.ClipboardManager
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
@@ -149,12 +150,22 @@ fun FmdServerScreen(
                                     val message = "Connection OK"
                                     statusMessage = message
                                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    if (pushEndpoint.isNotBlank()) {
+                                        repo.registerPushEndpoint(pushEndpoint)
+                                    } else if (com.github.ringmydevice.receiver.PushReceiver.distributorAvailable(context)) {
+                                        com.github.ringmydevice.receiver.PushReceiver.register(context)
+                                    }
                                 } else if (rememberPassword && storedPassword.isNotBlank()) {
                                     val refreshed = repo.login(baseUrl, userId, storedPassword)
                                     if (!refreshed.isNullOrBlank()) {
                                         viewModel.setFmdAccessToken(refreshed)
                                         statusMessage = "Connection OK (refreshed)"
                                         Toast.makeText(context, statusMessage, Toast.LENGTH_LONG).show()
+                                        if (pushEndpoint.isNotBlank()) {
+                                            repo.registerPushEndpoint(pushEndpoint)
+                                        } else if (com.github.ringmydevice.receiver.PushReceiver.distributorAvailable(context)) {
+                                            com.github.ringmydevice.receiver.PushReceiver.register(context)
+                                        }
                                     } else {
                                         val message = "Token invalid - log in again"
                                         statusMessage = message
@@ -224,9 +235,35 @@ fun FmdServerScreen(
             PushCard(
                 pushEndpoint = pushEndpoint,
                 sunupInstalled = isSunupInstalled,
+                refreshEnabled = isLoggedIn,
                 onInstallSunup = { openUrl(context, "https://f-droid.org/en/packages/org.unifiedpush.distributor.sunup/") },
                 onRegister = { com.github.ringmydevice.receiver.PushReceiver.register(context) },
-                onInfo = { openUrl(context, "https://unifiedpush.org/users/distributors/") }
+                onInfo = { openUrl(context, "https://unifiedpush.org/users/distributors/") },
+                onCopyEndpoint = {
+                    if (pushEndpoint.isNotBlank()) {
+                        copyToClipboard(context, "Push endpoint", pushEndpoint)
+                    } else {
+                        Toast.makeText(context, "No endpoint to copy", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onOpenEndpoint = {
+                    if (pushEndpoint.isNotBlank()) {
+                        openUrl(context, pushEndpoint)
+                    } else {
+                        Toast.makeText(context, "No endpoint to open", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onRefreshEndpoint = {
+                    scope.launch {
+                        val endpoint = repo.syncPushEndpointFromServer()
+                        if (endpoint.isNullOrBlank()) {
+                            Toast.makeText(context, "Could not fetch endpoint", Toast.LENGTH_LONG).show()
+                        } else {
+                            viewModel.setFmdPushEndpoint(endpoint)
+                            Toast.makeText(context, "Endpoint synced", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             )
         }
     }
@@ -253,19 +290,25 @@ fun FmdServerScreen(
                             return@launch
                         }
                         viewModel.setRememberPassword(rememberPassword)
-                        if (rememberPassword) {
-                            viewModel.setStoredPassword(password)
-                        } else {
-                            viewModel.setStoredPassword("")
-                        }
-                        viewModel.setFmdServerUrl(baseUrl)
-                        viewModel.setFmdUserId(deviceId)
-                        viewModel.setFmdAccessToken(access)
-                        statusMessage = "Connected"
-                        Toast.makeText(context, "Registered as $deviceId", Toast.LENGTH_LONG).show()
-                        showRegisterDialog = false
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Registration error: ${e.message}", Toast.LENGTH_LONG).show()
+                    if (rememberPassword) {
+                        viewModel.setStoredPassword(password)
+                    } else {
+                        viewModel.setStoredPassword("")
+                    }
+                    com.github.ringmydevice.service.RmdServerPoller.start(context.applicationContext)
+                    viewModel.setFmdServerUrl(baseUrl)
+                    viewModel.setFmdUserId(deviceId)
+                    viewModel.setFmdAccessToken(access)
+                    if (pushEndpoint.isNotBlank()) {
+                        repo.registerPushEndpointDirect(baseUrl, access, pushEndpoint)
+                    } else if (com.github.ringmydevice.receiver.PushReceiver.distributorAvailable(context)) {
+                        com.github.ringmydevice.receiver.PushReceiver.register(context)
+                    }
+                    statusMessage = "Connected"
+                    Toast.makeText(context, "Registered as $deviceId", Toast.LENGTH_LONG).show()
+                    showRegisterDialog = false
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Registration error: ${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -273,11 +316,29 @@ fun FmdServerScreen(
         PushCard(
             pushEndpoint = pushEndpoint,
             sunupInstalled = isSunupInstalled,
+            refreshEnabled = false,
             onInstallSunup = { openUrl(context, "https://f-droid.org/en/packages/org.unifiedpush.distributor.sunup/") },
             onRegister = {
                 com.github.ringmydevice.receiver.PushReceiver.register(context)
             },
-            onInfo = { openUrl(context, "https://unifiedpush.org/users/distributors/") }
+            onInfo = { openUrl(context, "https://unifiedpush.org/users/distributors/") },
+            onCopyEndpoint = {
+                if (pushEndpoint.isNotBlank()) {
+                    copyToClipboard(context, "Push endpoint", pushEndpoint)
+                } else {
+                    Toast.makeText(context, "No endpoint to copy", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onOpenEndpoint = {
+                if (pushEndpoint.isNotBlank()) {
+                    openUrl(context, pushEndpoint)
+                } else {
+                    Toast.makeText(context, "No endpoint to open", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onRefreshEndpoint = {
+                Toast.makeText(context, "Log in first to sync the endpoint", Toast.LENGTH_SHORT).show()
+            }
         )
     }
     if (showLoginDialog) {
@@ -308,6 +369,13 @@ fun FmdServerScreen(
                     viewModel.setFmdServerUrl(baseUrl)
                     viewModel.setFmdUserId(id)
                     viewModel.setFmdAccessToken(access)
+                    // Start background poller now that we have a valid session.
+                    com.github.ringmydevice.service.RmdServerPoller.start(context.applicationContext)
+                    if (pushEndpoint.isNotBlank()) {
+                        repo.registerPushEndpointDirect(baseUrl, access, pushEndpoint)
+                    } else if (com.github.ringmydevice.receiver.PushReceiver.distributorAvailable(context)) {
+                        com.github.ringmydevice.receiver.PushReceiver.register(context)
+                    }
                     statusMessage = "Connected"
                     Toast.makeText(context, "Logged in", Toast.LENGTH_LONG).show()
                     showLoginDialog = false
@@ -583,9 +651,13 @@ private fun PostAuthActions(
 private fun PushCard(
     pushEndpoint: String,
     sunupInstalled: Boolean,
+    refreshEnabled: Boolean,
     onInstallSunup: () -> Unit,
     onRegister: () -> Unit,
-    onInfo: () -> Unit
+    onInfo: () -> Unit,
+    onCopyEndpoint: () -> Unit,
+    onOpenEndpoint: () -> Unit,
+    onRefreshEndpoint: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1f1d2e)),
@@ -599,15 +671,39 @@ private fun PushCard(
                 color = Color(0xFFc4a7e7),
                 style = MaterialTheme.typography.bodySmall
             )
-            Text(
-                if (pushEndpoint.isNotBlank()) "Registered endpoint: $pushEndpoint" else "Not registered for push.",
-                color = Color(0xFF9ccfd8),
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2
-            )
+            if (pushEndpoint.isNotBlank()) {
+                Text("Registered endpoint:", color = Color(0xFF9ccfd8), style = MaterialTheme.typography.labelMedium)
+                SelectionContainer {
+                    Text(
+                        pushEndpoint,
+                        color = Color(0xFF9ccfd8),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 3
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = onCopyEndpoint, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy endpoint", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Copy")
+                    }
+                    OutlinedButton(onClick = onOpenEndpoint, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Outlined.OpenInBrowser, contentDescription = "Open endpoint", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Open")
+                    }
+                }
+            } else {
+                Text("Not registered for push.", color = Color(0xFF9ccfd8), style = MaterialTheme.typography.bodySmall)
+            }
             val installLabel = if (sunupInstalled) "Sunup installed" else "Install Sunup"
             Button(onClick = onInstallSunup, modifier = Modifier.fillMaxWidth(), enabled = !sunupInstalled) { Text(installLabel) }
             Button(onClick = onRegister, modifier = Modifier.fillMaxWidth()) { Text("Register push") }
+            OutlinedButton(
+                onClick = onRefreshEndpoint,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = refreshEnabled
+            ) { Text("Sync endpoint from server") }
             OutlinedButton(onClick = onInfo, modifier = Modifier.fillMaxWidth()) { Text("More information about push") }
         }
     }

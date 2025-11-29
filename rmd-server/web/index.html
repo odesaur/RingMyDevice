@@ -15,11 +15,11 @@
     <script src="rmdcrypto.js"></script>
 </head>
 <body class="tui">
-    <div class="panel">
-        <div class="header">
-            <div class="title">RMD Server</div>
-            <div class="version" id="version">v0.0.0</div>
-        </div>
+        <div class="panel">
+            <div class="header">
+                <div class="title">RMD Server</div>
+                <div class="version" id="version">v0.0.0</div>
+            </div>
         <div class="intro">Self-hosted control panel for RingMyDevice. Register via the app, then log in to manage and trigger actions.</div>
         <form id="loginForm" class="form">
             <label for="rmdid">RMD ID</label>
@@ -36,7 +36,15 @@
             <div class="stack">
                 <div class="row-space">
                     <div><span class="label">ID:</span> <span id="idView"></span></div>
-                    <div><span class="label">Push:</span> <span id="pushWarning"></span></div>
+                    <div><span class="label">Push:</span> <span id="pushWarning"></span><span id="pushStatus" class="mono"></span></div>
+                </div>
+                <div id="pushPanel" class="push-panel hidden">
+                    <div class="push-row">
+                        <input type="text" id="pushEndpointInput" placeholder="Push endpoint URL" />
+                        <button type="button" class="btn" id="pushSave">Save</button>
+                        <button type="button" class="btn" id="pushRefresh">Refresh</button>
+                    </div>
+                    <div id="pushSaveMsg" class="mono"></div>
                 </div>
                 <div class="grid">
                     <button type="button" class="btn" id="locateAll">Locate all</button>
@@ -74,6 +82,7 @@
         <div class="footer">
             <a href="https://github.com/odesaur/RingMyDevice" target="_blank">Source</a> ·
             <a href="ds.html">Privacy</a>
+            <span style="float:right" id="pushStatusFooter"></span>
         </div>
     </div>
 </body>

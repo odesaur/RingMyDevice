@@ -68,6 +68,45 @@ class RmdServerRepository private constructor(
         response != null
     }
 
+    suspend fun syncPushEndpointFromServer(): String? = withContext(Dispatchers.IO) {
+        val full = settingsRepository.getFullServerConfig() ?: return@withContext null
+        var token = full.accessToken
+        val baseUrl = full.baseUrl
+
+        suspend fun fetchEndpoint(tkn: String): Pair<Int, String?> {
+            val url = URL("${baseUrl.trimEnd('/')}/api/v1/push")
+            val payload = JSONObject().apply {
+                put("IDT", tkn)
+                put("Data", "")
+            }
+            return postForText(url, payload, "POST")
+        }
+
+        if (token.isNotBlank()) {
+            val (code, endpoint) = fetchEndpoint(token)
+            if (endpoint != null) {
+                settingsRepository.setPushEndpoint(endpoint)
+                return@withContext endpoint
+            }
+            if (code != HttpURLConnection.HTTP_UNAUTHORIZED) {
+                return@withContext null
+            }
+        }
+
+        if (!full.rememberPassword || full.userId.isBlank() || full.storedPassword.isBlank()) {
+            return@withContext null
+        }
+
+        val newToken = login(baseUrl, full.userId, full.storedPassword)
+        if (newToken.isNullOrBlank()) return@withContext null
+        settingsRepository.setAccessToken(newToken)
+        val (_, refreshedEndpoint) = fetchEndpoint(newToken)
+        if (!refreshedEndpoint.isNullOrBlank()) {
+            settingsRepository.setPushEndpoint(refreshedEndpoint)
+        }
+        refreshedEndpoint
+    }
+
     suspend fun getServerVersion(baseUrl: String): String? = withContext(Dispatchers.IO) {
         val url = URL("${baseUrl.trimEnd('/')}/api/v1/version")
         val connection = (openConnection(url) as HttpURLConnection).apply {
@@ -231,13 +270,67 @@ class RmdServerRepository private constructor(
     }
 
     suspend fun registerPushEndpoint(endpoint: String): Boolean = withContext(Dispatchers.IO) {
-        val config = settingsRepository.getServerConfig() ?: return@withContext false
+        val full = settingsRepository.getFullServerConfig() ?: return@withContext false
+        var token = full.accessToken
+        val baseUrl = full.baseUrl
+        // If token is missing/expired, try auto-login if allowed
+        if (token.isBlank() && full.rememberPassword && full.userId.isNotBlank() && full.storedPassword.isNotBlank()) {
+            val newToken = login(baseUrl, full.userId, full.storedPassword)
+            if (!newToken.isNullOrBlank()) {
+                token = newToken
+                settingsRepository.setAccessToken(newToken)
+            }
+        }
+        if (token.isBlank()) return@withContext false
+
         val payload = JSONObject().apply {
-            put("IDT", config.accessToken)
+            put("IDT", token)
             put("Data", endpoint)
         }
-        val url = URL("${config.baseUrl.trimEnd('/')}/api/v1/push")
+        val url = URL("${baseUrl.trimEnd('/')}/api/v1/push")
         val response = executeJsonRequest(url, payload, "POST")
         response != null
+    }
+
+    suspend fun registerPushEndpointDirect(baseUrl: String, accessToken: String, endpoint: String): Boolean = withContext(Dispatchers.IO) {
+        if (baseUrl.isBlank() || accessToken.isBlank() || endpoint.isBlank()) return@withContext false
+        val payload = JSONObject().apply {
+            put("IDT", accessToken)
+            put("Data", endpoint)
+        }
+        val url = URL("${baseUrl.trimEnd('/')}/api/v1/push")
+        val response = executeJsonRequest(url, payload, "POST")
+        response != null
+    }
+
+    suspend fun syncStoredPushEndpoint(): Boolean = withContext(Dispatchers.IO) {
+        val full = settingsRepository.getFullServerConfig() ?: return@withContext false
+        registerPushEndpointDirect(full.baseUrl, full.accessToken, full.pushEndpoint)
+    }
+
+    private fun postForText(url: URL, payload: JSONObject, method: String): Pair<Int, String?> {
+        val connection = (openConnection(url) as HttpURLConnection).apply {
+            requestMethod = method
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            doInput = true
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+        }
+        return try {
+            connection.outputStream.use { os ->
+                os.write(payload.toString().toByteArray())
+            }
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                return Pair(code, null)
+            }
+            val body = connection.inputStream?.use { input ->
+                BufferedReader(InputStreamReader(input)).readText()
+            }?.trim()
+            Pair(code, body?.takeIf { it.isNotBlank() })
+        } finally {
+            connection.disconnect()
+        }
     }
 }

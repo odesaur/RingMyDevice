@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"crypto/aes"
 	"crypto/cipher"
@@ -347,12 +348,19 @@ func getPushUrl(w http.ResponseWriter, r *http.Request) {
 	var data DataPackage
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
-		http.Error(w, "Meeep!, Error - getIsPushRegistered 1", http.StatusBadRequest)
+		http.Error(w, ERR_JSON_INVALID, http.StatusBadRequest)
 		return
 	}
 	user, err := uio.CheckAccessTokenAndGetUser(data.IDT)
 	if err != nil {
 		http.Error(w, ERR_ACCESS_TOKEN_INVALID, http.StatusUnauthorized)
+		return
+	}
+
+	endpoint := strings.TrimSpace(data.Data)
+	if endpoint != "" {
+		uio.SetPushUrl(user, endpoint)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -373,7 +381,7 @@ func postPushUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uio.SetPushUrl(user, data.Data)
+	uio.SetPushUrl(user, strings.TrimSpace(data.Data))
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -675,10 +683,9 @@ func mainCommand(w http.ResponseWriter, r *http.Request) {
 }
 
 func mainPushUrl(w http.ResponseWriter, r *http.Request) {
-	// This is inverted, and not nice, but it has grown historically...
-	// Ideally the HTTP methods would be GET and PUT (or possibly POST).
-	// But the app is using PUT to set the URL, so we need to keep that.
-	// And we cannot have a body in GET requests, so we need to use POST.
+	// Historically, POST is used to fetch the push URL (with an empty body)
+	// and PUT was used to set it. We now also accept POST with Data=<endpoint>
+	// to register/update the push URL so that both the app and web portal work.
 	switch r.Method {
 	case http.MethodPost:
 		getPushUrl(w, r)

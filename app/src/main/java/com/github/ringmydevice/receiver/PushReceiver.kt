@@ -30,8 +30,12 @@ class PushReceiver : MessagingReceiver() {
     override fun onNewEndpoint(context: Context, endpoint: String, instance: String) {
         scope.launch {
             val repo = RmdServerRepository.getInstance()
+            val settings = AppGraph.settingsRepo
+            // Persist locally
+            settings.setPushEndpoint(endpoint)
+
+            // Try to send to server with token or auto-login if allowed.
             repo.registerPushEndpoint(endpoint)
-            AppGraph.settingsRepo.setPushEndpoint(endpoint)
         }
     }
 
