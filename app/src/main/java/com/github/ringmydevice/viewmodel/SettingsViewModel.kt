@@ -42,6 +42,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val OPEN_CELL_ID_TOKEN = stringPreferencesKey("open_cell_id_token")
         val FMD_REMEMBER_PASSWORD = booleanPreferencesKey("fmd_remember_password")
         val FMD_STORED_PASSWORD = stringPreferencesKey("fmd_stored_password")
+        val FMD_PUSH_ENDPOINT = stringPreferencesKey("fmd_push_endpoint")
     }
 
     // read fata
@@ -101,6 +102,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val fmdStoredPassword = dataStore.data
         .map { it[FMD_STORED_PASSWORD] ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val fmdPushEndpoint = dataStore.data
+        .map { it[FMD_PUSH_ENDPOINT] ?: "" }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     val fmdUploadWhenOnline = dataStore.data
@@ -233,6 +238,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             dataStore.edit { it[FMD_STORED_PASSWORD] = password }
             logSetting("Stored password", if (password.isBlank()) "(cleared)" else "(updated)")
+        }
+    }
+
+    fun setFmdPushEndpoint(endpoint: String) {
+        viewModelScope.launch {
+            dataStore.edit { it[FMD_PUSH_ENDPOINT] = endpoint }
+            logSetting("Push endpoint", if (endpoint.isBlank()) "(cleared)" else "(updated)")
         }
     }
 

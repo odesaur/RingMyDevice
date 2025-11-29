@@ -77,19 +77,27 @@ class SettingsRepository private constructor(context: Context) {
         val userId = prefs[SettingsViewModel.FMD_USER_ID]?.trim()
         val remember = prefs[SettingsViewModel.FMD_REMEMBER_PASSWORD] ?: false
         val storedPassword = prefs[SettingsViewModel.FMD_STORED_PASSWORD] ?: ""
+        val pushEndpoint = prefs[SettingsViewModel.FMD_PUSH_ENDPOINT] ?: ""
         if (url.isNullOrBlank()) return@withContext null
         FullServerConfig(
             baseUrl = url,
             accessToken = token ?: "",
             userId = userId ?: "",
             rememberPassword = remember,
-            storedPassword = storedPassword
+            storedPassword = storedPassword,
+            pushEndpoint = pushEndpoint
         )
     }
 
     suspend fun setAccessToken(token: String) = withContext(Dispatchers.IO) {
         dataStore.edit { prefs ->
             prefs[SettingsViewModel.FMD_ACCESS_TOKEN] = token
+        }
+    }
+
+    suspend fun setPushEndpoint(endpoint: String) = withContext(Dispatchers.IO) {
+        dataStore.edit { prefs ->
+            prefs[SettingsViewModel.FMD_PUSH_ENDPOINT] = endpoint
         }
     }
 
@@ -147,5 +155,6 @@ data class FullServerConfig(
     val accessToken: String,
     val userId: String,
     val rememberPassword: Boolean,
-    val storedPassword: String
+    val storedPassword: String,
+    val pushEndpoint: String
 )

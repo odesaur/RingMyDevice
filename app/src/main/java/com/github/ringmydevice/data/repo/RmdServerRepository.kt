@@ -229,4 +229,15 @@ class RmdServerRepository private constructor(
             response != null
         }.getOrDefault(false)
     }
+
+    suspend fun registerPushEndpoint(endpoint: String): Boolean = withContext(Dispatchers.IO) {
+        val config = settingsRepository.getServerConfig() ?: return@withContext false
+        val payload = JSONObject().apply {
+            put("IDT", config.accessToken)
+            put("Data", endpoint)
+        }
+        val url = URL("${config.baseUrl.trimEnd('/')}/api/v1/push")
+        val response = executeJsonRequest(url, payload, "POST")
+        response != null
+    }
 }

@@ -72,4 +72,6 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.1.0")
+    // UnifiedPush (Sunup / other distributors)
+    implementation("com.github.UnifiedPush:android-connector:2.1.1")
 }

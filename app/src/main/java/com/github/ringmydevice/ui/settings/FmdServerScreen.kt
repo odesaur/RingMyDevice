@@ -78,6 +78,10 @@ fun FmdServerScreen(
     val accessToken by viewModel.fmdAccessToken.collectAsState(initial = "")
     val rememberPassword by viewModel.fmdRememberPassword.collectAsState(initial = false)
     val storedPassword by viewModel.fmdStoredPassword.collectAsState(initial = "")
+    val pushEndpoint by viewModel.fmdPushEndpoint.collectAsState(initial = "")
+    val isSunupInstalled by remember {
+        mutableStateOf(isPackageInstalled(context, "org.unifiedpush.distributor.sunup"))
+    }
     val uploadEnabled by viewModel.fmdUploadWhenOnline.collectAsState(initial = true) // kept for future use
     var showRegisterDialog by remember { mutableStateOf(false) }
     var showLoginDialog by remember { mutableStateOf(false) }
@@ -217,6 +221,13 @@ fun FmdServerScreen(
                     onLogin = { showLoginDialog = true }
                 )
             }
+            PushCard(
+                pushEndpoint = pushEndpoint,
+                sunupInstalled = isSunupInstalled,
+                onInstallSunup = { openUrl(context, "https://f-droid.org/en/packages/org.unifiedpush.distributor.sunup/") },
+                onRegister = { com.github.ringmydevice.receiver.PushReceiver.register(context) },
+                onInfo = { openUrl(context, "https://unifiedpush.org/users/distributors/") }
+            )
         }
     }
     if (showRegisterDialog) {
@@ -258,6 +269,15 @@ fun FmdServerScreen(
                     }
                 }
             }
+        )
+        PushCard(
+            pushEndpoint = pushEndpoint,
+            sunupInstalled = isSunupInstalled,
+            onInstallSunup = { openUrl(context, "https://f-droid.org/en/packages/org.unifiedpush.distributor.sunup/") },
+            onRegister = {
+                com.github.ringmydevice.receiver.PushReceiver.register(context)
+            },
+            onInfo = { openUrl(context, "https://unifiedpush.org/users/distributors/") }
         )
     }
     if (showLoginDialog) {
@@ -555,6 +575,40 @@ private fun PostAuthActions(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFeb6f92))
             ) { Text("Delete account") }
+        }
+    }
+}
+
+@Composable
+private fun PushCard(
+    pushEndpoint: String,
+    sunupInstalled: Boolean,
+    onInstallSunup: () -> Unit,
+    onRegister: () -> Unit,
+    onInfo: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1f1d2e)),
+        elevation = CardDefaults.cardElevation(4.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Push", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color(0xFFebbcba)))
+            Text(
+                "Sending commands from RMD Server to your device requires a UnifiedPush distributor app. The recommended one is Sunup (Mozilla push servers).",
+                color = Color(0xFFc4a7e7),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                if (pushEndpoint.isNotBlank()) "Registered endpoint: $pushEndpoint" else "Not registered for push.",
+                color = Color(0xFF9ccfd8),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2
+            )
+            val installLabel = if (sunupInstalled) "Sunup installed" else "Install Sunup"
+            Button(onClick = onInstallSunup, modifier = Modifier.fillMaxWidth(), enabled = !sunupInstalled) { Text(installLabel) }
+            Button(onClick = onRegister, modifier = Modifier.fillMaxWidth()) { Text("Register push") }
+            OutlinedButton(onClick = onInfo, modifier = Modifier.fillMaxWidth()) { Text("More information about push") }
         }
     }
 }
