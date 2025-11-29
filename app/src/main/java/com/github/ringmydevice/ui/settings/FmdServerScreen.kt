@@ -61,6 +61,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +76,8 @@ fun FmdServerScreen(
     val serverUrl by viewModel.fmdServerUrl.collectAsState()
     val userId by viewModel.fmdUserId.collectAsState(initial = "")
     val accessToken by viewModel.fmdAccessToken.collectAsState(initial = "")
+    val rememberPassword by viewModel.fmdRememberPassword.collectAsState(initial = false)
+    val storedPassword by viewModel.fmdStoredPassword.collectAsState(initial = "")
     val uploadEnabled by viewModel.fmdUploadWhenOnline.collectAsState(initial = true) // kept for future use
     var showRegisterDialog by remember { mutableStateOf(false) }
     var showLoginDialog by remember { mutableStateOf(false) }
@@ -138,9 +141,26 @@ fun FmdServerScreen(
                                     return@launch
                                 }
                                 val ok = repo.verifyAccessToken(baseUrl, trimmedToken)
-                                val message = if (ok) "Connection OK" else "Token invalid or expired - log in again"
-                                statusMessage = message
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                if (ok) {
+                                    val message = "Connection OK"
+                                    statusMessage = message
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                } else if (rememberPassword && storedPassword.isNotBlank()) {
+                                    val refreshed = repo.login(baseUrl, userId, storedPassword)
+                                    if (!refreshed.isNullOrBlank()) {
+                                        viewModel.setFmdAccessToken(refreshed)
+                                        statusMessage = "Connection OK (refreshed)"
+                                        Toast.makeText(context, statusMessage, Toast.LENGTH_LONG).show()
+                                    } else {
+                                        val message = "Token invalid - log in again"
+                                        statusMessage = message
+                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    }
+                                } else {
+                                    val message = "Token invalid or expired - log in again"
+                                    statusMessage = message
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                }
                             } catch (e: Exception) {
                                 val message = "Verify error: ${e.message ?: "unknown"}"
                                 statusMessage = message
@@ -221,6 +241,12 @@ fun FmdServerScreen(
                             Toast.makeText(context, "Login failed after registration", Toast.LENGTH_LONG).show()
                             return@launch
                         }
+                        viewModel.setRememberPassword(rememberPassword)
+                        if (rememberPassword) {
+                            viewModel.setStoredPassword(password)
+                        } else {
+                            viewModel.setStoredPassword("")
+                        }
                         viewModel.setFmdServerUrl(baseUrl)
                         viewModel.setFmdUserId(deviceId)
                         viewModel.setFmdAccessToken(access)
@@ -238,8 +264,10 @@ fun FmdServerScreen(
         LoginDialog(
             initialServerUrl = serverUrl,
             initialUserId = userId,
+            initialPassword = if (rememberPassword) storedPassword else "",
+            initialRemember = rememberPassword,
             onDismiss = { showLoginDialog = false },
-            onLogin = { url, id, password ->
+            onLogin = { url, id, password, remember ->
                 scope.launch {
                     val baseUrl = url.trim().trimEnd('/')
                     if (baseUrl.isBlank()) {
@@ -250,6 +278,12 @@ fun FmdServerScreen(
                     if (access.isNullOrBlank()) {
                         Toast.makeText(context, "Login failed", Toast.LENGTH_LONG).show()
                         return@launch
+                    }
+                    viewModel.setRememberPassword(remember)
+                    if (remember) {
+                        viewModel.setStoredPassword(password)
+                    } else {
+                        viewModel.setStoredPassword("")
                     }
                     viewModel.setFmdServerUrl(baseUrl)
                     viewModel.setFmdUserId(id)
@@ -346,12 +380,15 @@ private fun RegisterDialog(
 private fun LoginDialog(
     initialServerUrl: String,
     initialUserId: String,
+    initialPassword: String,
+    initialRemember: Boolean,
     onDismiss: () -> Unit,
-    onLogin: (String, String, String) -> Unit
+    onLogin: (String, String, String, Boolean) -> Unit
 ) {
     var serverUrl by remember { mutableStateOf(initialServerUrl) }
     var userId by remember { mutableStateOf(initialUserId) }
-    var password by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf(initialPassword) }
+    var remember by remember { mutableStateOf(initialRemember) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Login to RMD Server") },
@@ -377,10 +414,14 @@ private fun LoginDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = remember, onCheckedChange = { remember = it })
+                    Text("Remember password")
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onLogin(serverUrl, userId, password) }) { Text("Login") }
+            Button(onClick = { onLogin(serverUrl, userId, password, remember) }) { Text("Login") }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss) { Text("Cancel") }

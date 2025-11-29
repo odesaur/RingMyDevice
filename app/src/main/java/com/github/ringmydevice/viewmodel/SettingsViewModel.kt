@@ -40,6 +40,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val FMD_ACCESS_TOKEN = stringPreferencesKey("fmd_access_token")
         val FMD_UPLOAD_WHEN_ONLINE = booleanPreferencesKey("fmd_upload_when_online")
         val OPEN_CELL_ID_TOKEN = stringPreferencesKey("open_cell_id_token")
+        val FMD_REMEMBER_PASSWORD = booleanPreferencesKey("fmd_remember_password")
+        val FMD_STORED_PASSWORD = stringPreferencesKey("fmd_stored_password")
     }
 
     // read fata
@@ -91,6 +93,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val fmdAccessToken = dataStore.data
         .map { it[FMD_ACCESS_TOKEN] ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val fmdRememberPassword = dataStore.data
+        .map { it[FMD_REMEMBER_PASSWORD] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val fmdStoredPassword = dataStore.data
+        .map { it[FMD_STORED_PASSWORD] ?: "" }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     val fmdUploadWhenOnline = dataStore.data
@@ -206,6 +216,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             dataStore.edit { it[FMD_ACCESS_TOKEN] = token }
             logSetting("Server access token", if (token.isBlank()) "(cleared)" else "(updated)")
+        }
+    }
+
+    fun setRememberPassword(remember: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[FMD_REMEMBER_PASSWORD] = remember }
+            logSetting("Remember password", remember.toString())
+            if (!remember) {
+                dataStore.edit { it[FMD_STORED_PASSWORD] = "" }
+            }
+        }
+    }
+
+    fun setStoredPassword(password: String) {
+        viewModelScope.launch {
+            dataStore.edit { it[FMD_STORED_PASSWORD] = password }
+            logSetting("Stored password", if (password.isBlank()) "(cleared)" else "(updated)")
         }
     }
 

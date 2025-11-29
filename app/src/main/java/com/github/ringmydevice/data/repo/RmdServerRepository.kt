@@ -119,30 +119,52 @@ class RmdServerRepository private constructor(
         return connection
     }
 
-    private fun executeJsonRequest(url: URL, payload: JSONObject, method: String): JSONObject? {
-        val connection = (openConnection(url) as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = 15_000
-            readTimeout = 15_000
-            doInput = true
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
-        }
-        return try {
-            connection.outputStream.use { os ->
-                os.write(payload.toString().toByteArray())
+    private suspend fun executeJsonRequest(url: URL, payload: JSONObject, method: String): JSONObject? {
+        // Try once, and on 401 try to refresh token (if remember password) and retry once.
+        val baseUrl = "${url.protocol}://${url.authority}"
+        var refreshed = false
+        repeat(2) { attempt ->
+            val connection = (openConnection(url) as HttpURLConnection).apply {
+                requestMethod = method
+                connectTimeout = 15_000
+                readTimeout = 15_000
+                doInput = true
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
             }
-            val code = connection.responseCode
-            if (code !in 200..299) {
-                return null
+            try {
+                connection.outputStream.use { os ->
+                    os.write(payload.toString().toByteArray())
+                }
+                val code = connection.responseCode
+                if (code == 401 && !refreshed && refreshTokenIfPossible(baseUrl)) {
+                    refreshed = true
+                    return@repeat // retry
+                }
+                if (code !in 200..299) {
+                    return null
+                }
+                connection.inputStream?.use { input ->
+                    val body = BufferedReader(InputStreamReader(input)).readText()
+                    return if (body.isBlank()) JSONObject() else runCatching { JSONObject(body) }.getOrElse { JSONObject() }
+                }
+                return JSONObject()
+            } finally {
+                connection.disconnect()
             }
-            connection.inputStream?.use { input ->
-                val body = BufferedReader(InputStreamReader(input)).readText()
-                if (body.isBlank()) JSONObject() else runCatching { JSONObject(body) }.getOrElse { JSONObject() }
-            } ?: JSONObject()
-        } finally {
-            connection.disconnect()
         }
+        return null
+    }
+
+    private suspend fun refreshTokenIfPossible(baseUrl: String): Boolean {
+        val fullConfig = settingsRepository.getFullServerConfig() ?: return false
+        if (!fullConfig.rememberPassword || fullConfig.storedPassword.isBlank() || fullConfig.userId.isBlank()) {
+            return false
+        }
+        val newToken = login(baseUrl, fullConfig.userId, fullConfig.storedPassword)
+        if (newToken.isNullOrBlank()) return false
+        settingsRepository.setAccessToken(newToken)
+        return true
     }
 
     suspend fun registerDevice(
