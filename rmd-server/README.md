@@ -1,81 +1,51 @@
 # RMD Server
 
-This is the official server for [RingMyDevice Android](https://github.com/odesaur/RingMyDevice)
-written in Go.
-
-The RMD app can register an account on RMD Server.
-The app can then upload its location at regular intervals.
-You can also push commands to the RMD app on your device from RMD Server,
-e.g. to make your device ring.
+Self-hosted backend for [RingMyDevice Android](https://github.com/odesaur/RingMyDevice), written in Go.
+Register from the RMD app, store location history, and trigger commands (ring, lock, camera) from the web portal or app.
 
 ## Running RMD Server
 
-At its core, RMD is just a binary that you can run directly.
-If you are experienced and have settled on your own way to deploy applications,
-feel free to stick to that.
+### One-click local run (recommended for testing)
 
 ```bash
-go run main.go serve
-# or
-go build
-./rmd-server serve
+./rmd-server.sh
 ```
 
-Alternatively, or if you are new to hosting applications,
-we recommend running RMD Server with Docker.
+This builds the Docker image, starts HTTP on port 8080, and stores the SQLite DB in `./rmddata/db`.
+Open the portal at `http://localhost:8080` (or `http://<your-LAN-IP>:8080` from your phone).
+Use the RMD app to register/login with that URL.
 
-Quickly try RMD Server on your laptop from the command line:
+### Manual Docker run
 
 ```bash
 docker build -t rmd-server .
 docker run --rm -p 8080:8080 -v "$(pwd)/rmddata/db/:/var/lib/rmd-server/db/" rmd-server
 ```
 
-You can now visit RMD Server's web interface in your browser at http://localhost:8080.
-You can register your RMD app using the server URL `http://<your-laptops-ip>:8080`.
+### Optional TLS
+- Generate a self-signed cert (replace LAN_IP):  
+  `openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/server.key -out certs/server.crt -days 365 -subj "/CN=<LAN_IP>"`
+- Run HTTPS:  
+```bash
+docker run --rm \
+  -p 8443:8443 \
+  -v "$(pwd)/rmddata/db:/var/lib/rmd-server/db" \
+  -v "$(pwd)/certs/server.crt:/etc/rmd-server/server.crt:ro" \
+  -v "$(pwd)/certs/server.key:/etc/rmd-server/server.key:ro" \
+  -e RMD_PORTSECURE=8443 -e RMD_PORTINSECURE=-1 \
+  -e RMD_SERVERCRT=/etc/rmd-server/server.crt -e RMD_SERVERKEY=/etc/rmd-server/server.key \
+  rmd-server
+```
+Then open `https://<LAN_IP>:8443` and accept the cert. Use HTTPS on non-localhost if you want WebCrypto in browsers.
 
-Note that these steps are only for quick on-laptop testing and NOT for production!
-
-⚠️ In particular, the web interface will only work over HTTP on localhost.
-On all other origins **the web interface only works over HTTPS**.
-(This is a requirement of the WebCrypto API.
-RMD Server's API (and hence the app) always works over HTTP - but this is highly discouraged in production.)
-
-## Paths
-
-RMD Server uses the following paths:
-
-|                                    | Default location | Recommended location         |
-|------------------------------------|------------------|------------------------------|
-| Config file                        | `./config.yml`   | `/etc/rmd-server/config.yml` |
-| Directory with the SQLite database | `./db/`          | `/var/lib/rmd-server/db/`    |
-| Directory with web static files    | `""` (embedded)  | `/usr/share/rmd-server/web/` |
-
-These can be configured via CLI flags.
-The directories can also be configured in the config file.
-
-The default location is the current working directory, because it is expected to be writable by the current user.
-
-When installing RMD Server as an admin, use the recommended locations for a more Unix-like setup.
-However, this requires root privileges to create and chown the required locations (hence it is not the default).
-
-The Dockerfile uses the recommended locations, so mount your volumes there (as shown below).
-
-### Config file and packaging
-
-When `/etc/rmd-server/config.yml` is present and used, RMD Server also reads in `/etc/rmd-server/local.yml`.
-
-This is similar to how fail2ban uses jail.conf and jail.local:
-it allows packagers to use config.yml and allows admins put their settings in local.yml.
-Thus admins don't have to edit the packager's config.yml (which would
-cause conflicts if a package update changes the config.yml).
-
-Values in local.yml override their counterpart in config.yml.
+## Paths (defaults)
+Config: `./config.yml`  
+DB: `./rmddata/db/` (or `./db/` if you prefer)  
+Web assets: embedded (override with `--web-dir`)
 
 ## Self-hosting with Docker
 
-> ⚠️ RMD Server is still pre-1.0. Minor versions can introduce breaking changes.
-> It is recommended to pin a version and review release notes in this repository before upgrading.
+> ⚠️ RMD Server is pre-1.0. Pin a version and review release notes before upgrading.
 
 The following is an (incomplete) example `docker-compose.yml` for deploying RMD Server with Docker Compose.
 
@@ -91,8 +61,6 @@ services:
             - './rmddata/db/:/var/lib/rmd-server/db/'
         restart: unless-stopped
 ```
-
-Build the image locally from this repository until published images are available.
 
 *Persisting storage:*
 RMD has a database and needs to persist it across container restarts.
@@ -187,112 +155,7 @@ volumes:
     - ./server.key:/etc/rmd-server/server.key:ro
 ```
 
-## Configuring RMD Server
-
-### Via config file
-
-The [`config.example.yml`](config.example.yml) contains the available options to configure RMD Server.
-Copy this file to `config.yml` and edit it to your liking.
-
-By default, RMD Server will look for the `config.yml` at `/etc/rmd-server/config.yml`
-and in the current working directory.
-You can pass a custom location with `--config`.
-
-With Docker you can mount it with `-v ./config.yml:/etc/rmd-server/config.yml:ro` (for CLI)
-or for Compose:
-
-```yml
-# other lines omitted
-volumes:
-    - ./config.yml:/etc/rmd-server/config.yml:ro
-```
-
-NOTE: `yml` not `yaml`!
-
-### Via environment variables
-
-All values that can be set in the config file can also be set via environment variables.
-Simply set `RMD_CONFIGFIELDNAME`, e.g. `RMD_PORTINSECURE`.
-
-```yml
-services:
-  rmd:
-    environment:
-      RMD_PORTINSECURE: 8888
-    # other lines omitted
-```
-
-### Via CLI flags
-
-Some values can also be set via CLI flags.
-See `rmd-server serve --help` for details.
-
-### Precedence
-
-RMD Server uses [Viper](https://github.com/spf13/viper), which has the following precedence rules
-(from highest to lowest):
-
-CLI flag > env var > config file value > default value
-
-## Web static files
-
-The static files for the website are included in the Go binary using [`go:embed`](https://pkg.go.dev/embed).
-This is the recommended way to use RMD Server.
-
-If you want to manually provide the `web/` directory (for example, for custom styling), you can provide a custom path with the `--web-dir` option.
-This disables the embedded static files and instead reads all static files from the provided path.
-
-## Other ways to install
-
-- [AUR package](https://aur.archlinux.org/packages/findmydeviceserver), maintained by @Chris__
-
-## Logs
-
-Logs are written to stderr and to syslog.
-
-To view the messages in syslog:
-
-```sh
-journalctl -t rmd-server
-less /var/log/syslog | grep rmd-server
-```
-
-## Metrics
-
-RMD Server exposes metrics that can be scraped by [Prometheus](https://prometheus.io/).
-There is also a [Grafana template](grafana-template.json).
-
-By default, metrics are exposed on `[::1]:9100/metrics`.
-Using localhost is intentional, for security reasons.
-
-Note that the metrics address/port is independent of the main server address/port.
-RMD Server can serve both independently of each other, including on separate addresses and ports.
-
-You can change the metrics endpoint to a different address and port in the `config.yml`.
-For example, when running in a container you want to listen on a specific IP address
-or on all interfaces *inside* the container.
-
-## Donate
-
-<script src="https://liberapay.com/RMD/widgets/button.js"></script>
-<noscript><a href="https://liberapay.com/RMD/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a></noscript>
-
-<a href='https://ko-fi.com/H2H35JLOY' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://cdn.ko-fi.com/cdn/kofi4.png?v=2' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
-
-## Funding
-
-<div style="display: inline-flex; align-items: center;">
-    <a href="https://nlnet.nl/" target="_blank">
-        <img src="https://nlnet.nl/logo/banner.svg" alt="nlnet" height="50">
-    </a>
-    <a href="https://nlnet.nl/taler" target="_blank">
-        <img src="https://nlnet.nl/image/logos/NGI_Mobifree_tag.svg" alt="NextGenerationInternet" height="50">
-    </a>
-</div>
-
-This project was funded through the NGI Mobifree Fund.
-For more details, visit our [project page](https://nlnet.nl/project/RMD/)
-
 ## License
 
+Forked and Inspired from FMD Server
 RMD Server is published under [GPLv3-or-later](LICENSE).
