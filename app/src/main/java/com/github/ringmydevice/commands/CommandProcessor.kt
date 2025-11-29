@@ -101,6 +101,7 @@ object CommandProcessor {
                 CommandId.STATS -> dispatchStats(appContext, source)
                 CommandId.GPS -> dispatchGps(appContext, args, source)
                 CommandId.LOCATE -> dispatchLocate(appContext, args, source)
+                CommandId.CAMERA -> dispatchCamera(appContext, args, source)
                 CommandId.LOCK -> dispatchLock(appContext, args, source)
                 CommandId.HELP -> dispatchHelp(appContext, source, baseCommand)
                 CommandId.UNKNOWN -> CommandExecutionResult(
@@ -350,6 +351,39 @@ object CommandProcessor {
         )
     }
 
+    private suspend fun dispatchCamera(
+        context: Context,
+        args: List<String>,
+        source: CommandSource
+    ): CommandExecutionResult {
+        val useFront = args.any { it.equals("front", ignoreCase = true) }
+        if (!hasCameraPermission(context)) {
+            val msg = "Camera permission missing; grant it to take photos."
+            if (source == CommandSource.IN_APP) {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                }
+            }
+            return CommandExecutionResult(
+                CommandId.CAMERA,
+                CommandStatus.PERMISSION_MISSING,
+                feedbackMessage = msg,
+                logNotes = "Camera permission missing"
+            )
+        }
+        val intent = Intent(context, com.github.ringmydevice.ui.camera.CameraCaptureActivity::class.java).apply {
+            putExtra(com.github.ringmydevice.ui.camera.CameraCaptureActivity.EXTRA_CAMERA, if (useFront) 1 else 0)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        ContextCompat.startActivity(context, intent, null)
+        return CommandExecutionResult(
+            CommandId.CAMERA,
+            CommandStatus.SUCCESS,
+            feedbackMessage = "Photo capture triggered (${if (useFront) "front" else "back"} camera).",
+            logNotes = "Camera capture started (${if (useFront) "front" else "back"})"
+        )
+    }
+
     private suspend fun dispatchLock(
         context: Context,
         args: List<String>,
@@ -437,6 +471,7 @@ object CommandProcessor {
         "stats" -> CommandId.STATS
         "gps" -> CommandId.GPS
         "locate" -> CommandId.LOCATE
+        "camera", "photo" -> CommandId.CAMERA
         "lock" -> CommandId.LOCK
         "help" -> CommandId.HELP
         else -> CommandId.UNKNOWN
@@ -449,6 +484,7 @@ object CommandProcessor {
         CommandId.RINGER_MODE -> CommandType.RINGER_MODE
         CommandId.STATS -> CommandType.STATS
         CommandId.GPS -> CommandType.GPS
+        CommandId.CAMERA -> CommandType.PHOTO
         CommandId.LOCK -> CommandType.LOCK
         CommandId.HELP -> CommandType.HELP
         CommandId.UNKNOWN -> CommandType.UNKNOWN
@@ -480,6 +516,11 @@ private fun hasNotificationPermission(context: Context): Boolean {
     } else {
         true
     }
+}
+
+private fun hasCameraPermission(context: Context): Boolean {
+    return ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED
 }
 
 private fun notifyUser(context: Context, source: CommandSource, message: String) {

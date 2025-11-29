@@ -62,6 +62,14 @@ class SettingsRepository private constructor(context: Context) {
         }
     }
 
+    suspend fun getServerConfig(): ServerConfig? = withContext(Dispatchers.IO) {
+        val prefs = dataStore.data.first()
+        val url = prefs[SettingsViewModel.FMD_SERVER_URL]?.trim()?.trimEnd('/')
+        val token = prefs[SettingsViewModel.FMD_ACCESS_TOKEN]?.trim()
+        if (url.isNullOrBlank() || token.isNullOrBlank()) return@withContext null
+        ServerConfig(baseUrl = url, accessToken = token)
+    }
+
     companion object {
         const val DEFAULT_RING_SECONDS = 15
         const val LONG_RING_SECONDS = 30
@@ -105,3 +113,8 @@ data class SettingsSnapshot(
         )
     }
 }
+
+data class ServerConfig(
+    val baseUrl: String,
+    val accessToken: String
+)

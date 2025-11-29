@@ -35,6 +35,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val SEND_SMS_FEEDBACK = booleanPreferencesKey("send_sms_feedback")
         val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
+        val FMD_USER_ID = stringPreferencesKey("fmd_user_id")
         val FMD_SERVER_URL = stringPreferencesKey("fmd_server_url")
         val FMD_ACCESS_TOKEN = stringPreferencesKey("fmd_access_token")
         val FMD_UPLOAD_WHEN_ONLINE = booleanPreferencesKey("fmd_upload_when_online")
@@ -82,6 +83,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val fmdServerUrl = dataStore.data
         .map { it[FMD_SERVER_URL] ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val fmdUserId = dataStore.data
+        .map { it[FMD_USER_ID] ?: "" }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     val fmdAccessToken = dataStore.data
@@ -187,6 +192,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             dataStore.edit { it[FMD_SERVER_URL] = url }
             logSetting("Server URL", if (url.isBlank()) "(cleared)" else url)
+        }
+    }
+
+    fun setFmdUserId(userId: String) {
+        viewModelScope.launch {
+            dataStore.edit { it[FMD_USER_ID] = userId }
+            logSetting("Server user id", if (userId.isBlank()) "(cleared)" else userId)
         }
     }
 
