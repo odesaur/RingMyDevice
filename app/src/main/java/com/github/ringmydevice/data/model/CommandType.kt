@@ -8,7 +8,6 @@ enum class CommandType {
     NODISTURB,
     RINGER_MODE,
     STATS,
-    GPS,
     LOCK,
     HELP,
     UNKNOWN

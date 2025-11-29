@@ -53,7 +53,7 @@ func (u *UserRepository) CheckAccessTokenAndGetUser(providedAccessToken string) 
 	}
 
 	user.LastSeenTime = time.Now().Unix()
-	u.UB.Save(&user)
+	u.UB.Save(user)
 
 	return user, nil
 }
@@ -128,7 +128,7 @@ func (u *UserRepository) UpdateUserPassword(user *RMDUser, privKey string, inner
 
 	user.setPasswordData(innerSalt, innerPwHash)
 	user.PrivateKey = privKey
-	u.UB.Save(&user)
+	u.UB.Save(user)
 }
 
 func (u *UserRepository) AddLocation(user *RMDUser, loc string) {
@@ -248,7 +248,7 @@ func (u *UserRepository) GetPrivateKey(user *RMDUser) string {
 func (u *UserRepository) SetPrivateKey(user *RMDUser, key string) {
 	log.Info().Str("userid", user.UID).Msg("changing private key for user")
 	user.PrivateKey = key
-	u.UB.Save(&user)
+	u.UB.Save(user)
 }
 
 func (u *UserRepository) GetPublicKey(user *RMDUser) string {
@@ -258,7 +258,7 @@ func (u *UserRepository) GetPublicKey(user *RMDUser) string {
 func (u *UserRepository) SetPublicKey(user *RMDUser, key string) {
 	log.Info().Str("userid", user.UID).Msg("changing public key for user")
 	user.PublicKey = key
-	u.UB.Save(&user)
+	u.UB.Save(user)
 }
 
 /*
@@ -295,7 +295,7 @@ func (u *UserRepository) SetCommandToUser(user *RMDUser, cmd string, cmdTime uin
 		u.pushUser(user)
 	}
 
-	u.UB.Save(&user)
+	u.UB.Save(user)
 }
 
 func (u *UserRepository) GetCommandToUser(user *RMDUser) (string, uint64, string) {
@@ -331,7 +331,7 @@ func (u *UserRepository) SetPushUrl(user *RMDUser, pushUrl string) {
 	UpdatePushServerMetrics(old, pushUrl)
 
 	user.PushUrl = pushUrl
-	u.UB.Save(&user)
+	u.UB.Save(user)
 }
 
 func (u *UserRepository) GetPushUrl(user *RMDUser) string {

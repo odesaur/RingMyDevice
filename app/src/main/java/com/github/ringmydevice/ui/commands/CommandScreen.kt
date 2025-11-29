@@ -177,7 +177,6 @@ private fun permissionStateFor(id: CommandId): CommandPermissionUiState =
         CommandId.RING -> rememberRingPermissionState()
         CommandId.RINGER_MODE -> rememberRingerModePermissionState()
         CommandId.STATS -> rememberStatsPermissionState()
-        CommandId.GPS -> rememberSecureSettingsPermissionState()
         CommandId.LOCATE -> rememberLocatePermissionState()
         CommandId.CAMERA -> rememberCameraPermissionState()
         CommandId.LOCK -> rememberLockPermissionState()
@@ -472,7 +471,6 @@ private fun commandIcon(id: CommandId): ImageVector =
         CommandId.RING -> Icons.AutoMirrored.Outlined.VolumeUp
         CommandId.RINGER_MODE -> Icons.Outlined.Vibration
         CommandId.STATS -> Icons.Outlined.SignalCellularAlt
-        CommandId.GPS -> Icons.Outlined.GpsFixed
         CommandId.LOCATE -> Icons.Outlined.Public
         CommandId.CAMERA -> Icons.Outlined.PhotoCamera
         CommandId.LOCK -> Icons.Outlined.Lock

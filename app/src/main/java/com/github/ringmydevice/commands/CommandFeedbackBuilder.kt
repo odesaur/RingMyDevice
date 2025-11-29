@@ -11,7 +11,6 @@ object CommandFeedbackBuilder {
             CommandId.NODISTURB -> result.feedbackMessage ?: "Do Not Disturb mode has been updated."
             CommandId.RINGER_MODE -> result.feedbackMessage ?: "The ringer mode has been changed."
             CommandId.STATS -> result.feedbackMessage ?: "Network statistics have been requested. You will receive them shortly."
-            CommandId.GPS -> result.feedbackMessage ?: "GPS settings have been updated."
             CommandId.LOCATE -> result.feedbackMessage ?: "A location request has been triggered."
             CommandId.CAMERA -> result.feedbackMessage ?: "A photo request has been triggered."
             CommandId.LOCK -> result.feedbackMessage ?: "The device has been locked."

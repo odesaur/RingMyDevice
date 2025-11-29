@@ -102,31 +102,6 @@ services:
         security_opt: [no-new-privileges]
 ```
 
-## Reverse Proxy
-
-### With Caddy
-
-Use the following Caddyfile:
-
-```
-rmd.example.com {
-	reverse_proxy localhost:8080
-}
-```
-
-Caddy will automatically obtain a certificate from Let's Encrypt for you.
-
-### With nginx
-
-See the [example nginx config](nginx-example.conf).
-
-When uploading pictures you might see HTTP 413 errors in your proxy logs ("Content Too Large").
-To fix this increase the maximum body size, e.g to 20 MB:
-
-```
-client_max_body_size 20m;
-```
-
 ### Hosting in a subdirectory
 
 The RMD Server binary (whether run in Docker or not) assumes that request paths start at the root ("/").
@@ -156,5 +131,5 @@ volumes:
 
 ## License
 
-Forked and Inspired from FMD Server
+Inspired from FMD Server
 RMD Server is published under [GPLv3-or-later](LICENSE).

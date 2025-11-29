@@ -21,6 +21,10 @@ class SettingsRepository private constructor(context: Context) {
         dataStore.data.first()[SettingsViewModel.RMD_RINGTONE] ?: ""
     }
 
+    suspend fun getLockMessage(): String = withContext(Dispatchers.IO) {
+        dataStore.data.first()[SettingsViewModel.RMD_LOCK_MESSAGE] ?: ""
+    }
+
     suspend fun isRingEnabled(): Boolean = withContext(Dispatchers.IO) {
         dataStore.data.first()[SettingsViewModel.RING_ENABLED] ?: true
     }
@@ -70,6 +74,37 @@ class SettingsRepository private constructor(context: Context) {
         ServerConfig(baseUrl = url, accessToken = token)
     }
 
+    suspend fun getFullServerConfig(): FullServerConfig? = withContext(Dispatchers.IO) {
+        val prefs = dataStore.data.first()
+        val url = prefs[SettingsViewModel.FMD_SERVER_URL]?.trim()?.trimEnd('/')
+        val token = prefs[SettingsViewModel.FMD_ACCESS_TOKEN]?.trim()
+        val userId = prefs[SettingsViewModel.FMD_USER_ID]?.trim()
+        val remember = prefs[SettingsViewModel.FMD_REMEMBER_PASSWORD] ?: false
+        val storedPassword = prefs[SettingsViewModel.FMD_STORED_PASSWORD] ?: ""
+        val pushEndpoint = prefs[SettingsViewModel.FMD_PUSH_ENDPOINT] ?: ""
+        if (url.isNullOrBlank()) return@withContext null
+        FullServerConfig(
+            baseUrl = url,
+            accessToken = token ?: "",
+            userId = userId ?: "",
+            rememberPassword = remember,
+            storedPassword = storedPassword,
+            pushEndpoint = pushEndpoint
+        )
+    }
+
+    suspend fun setAccessToken(token: String) = withContext(Dispatchers.IO) {
+        dataStore.edit { prefs ->
+            prefs[SettingsViewModel.FMD_ACCESS_TOKEN] = token
+        }
+    }
+
+    suspend fun setPushEndpoint(endpoint: String) = withContext(Dispatchers.IO) {
+        dataStore.edit { prefs ->
+            prefs[SettingsViewModel.FMD_PUSH_ENDPOINT] = endpoint
+        }
+    }
+
     companion object {
         const val DEFAULT_RING_SECONDS = 15
         const val LONG_RING_SECONDS = 30
@@ -117,4 +152,13 @@ data class SettingsSnapshot(
 data class ServerConfig(
     val baseUrl: String,
     val accessToken: String
+)
+
+data class FullServerConfig(
+    val baseUrl: String,
+    val accessToken: String,
+    val userId: String,
+    val rememberPassword: Boolean,
+    val storedPassword: String,
+    val pushEndpoint: String
 )
