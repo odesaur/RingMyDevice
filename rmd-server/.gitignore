@@ -1,0 +1,41 @@
+# Databases
+*.mdb
+*.sqlite
+*.sqlite-journal
+db/
+rmddata/
+
+# Server config
+config.json
+config.yaml
+config.yml
+
+# Go build caches
+.gocache/
+.gomodcache/
+
+# binaries
+rmdserver
+rmd-server
+rmdDBViewer
+findmydeviceserver
+fmdserver
+fmd-server
+cmd/fmd.db
+cmd/config.yml2
+cmd/__debug_bin4154895520
+cmd/__debug_bin378745479
+
+# Certs
+*.crt
+*.csr
+*.key
+*.pem
+cmd/test/web
+
+# Release builds
+*.zip
+*.zip.sha256sum
+
+# Varia
+*.patch

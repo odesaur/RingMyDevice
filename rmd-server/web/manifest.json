@@ -1,0 +1,15 @@
+{
+    "name": "RMD Server",
+    "short_name": "RMD Server",
+    "description": "Locate and control your devices from a web interface.",
+    "icons": [
+        {
+            "src": "RMD.svg",
+            "sizes": "any"
+        }
+    ],
+    "display": "standalone",
+    "start_url": "/",
+    "background_color": "#232323",
+    "theme_color": "#4cb050"
+}

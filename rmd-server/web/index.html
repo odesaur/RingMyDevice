@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RMD Server</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="style.css" />
+    <!-- Password hashing (bundled includes wasm + asm fallback) -->
+    <script src="node_modules/argon2-browser/dist/argon2-bundled.min.js"></script>
+    <script src="config.js"></script>
+    <script src="apiv1.js"></script>
+    <script src="logic.js"></script>
+    <script src="rmdcrypto.js"></script>
+</head>
+<body class="tui">
+    <div class="panel">
+        <div class="header">
+            <div class="title">RMD Server</div>
+            <div class="version" id="version">v0.0.0</div>
+        </div>
+        <div class="intro">Self-hosted control panel for RingMyDevice. Register via the app, then log in to manage and trigger actions.</div>
+        <form id="loginForm" class="form">
+            <label for="rmdid">RMD ID</label>
+            <input type="text" id="rmdid" name="rmdid" placeholder="Your RMD ID" required>
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Password" required>
+            <div class="row-inline">
+                <input type="checkbox" id="useLongSession">
+                <label for="useLongSession">Remember me for one week</label>
+            </div>
+            <button id="loginButton" type="submit" class="btn">Log in</button>
+        </form>
+        <div id="dataView" class="hidden">
+            <div class="stack">
+                <div class="row-space">
+                    <div><span class="label">ID:</span> <span id="idView"></span></div>
+                    <div><span class="label">Push:</span> <span id="pushWarning"></span></div>
+                </div>
+                <div class="grid">
+                    <button type="button" class="btn" id="locateAll">Locate all</button>
+                    <button type="button" class="btn" id="locateGps">Locate GPS</button>
+                    <button type="button" class="btn" id="locateCellular">Locate Cell</button>
+                    <button type="button" class="btn" id="locateLast">Locate Last</button>
+                    <button type="button" class="btn" id="ring">Ring</button>
+                    <button type="button" class="btn" id="lock">Lock</button>
+                    <button type="button" class="btn" id="cameraFront">Camera Front</button>
+                    <button type="button" class="btn" id="cameraBack">Camera Back</button>
+                    <button type="button" class="btn" id="showPicture">Show Picture</button>
+                    <button type="button" class="btn danger" id="delete">Delete Device Command</button>
+                    <button type="button" class="btn" id="exportData">Export Data</button>
+                    <button type="button" class="btn danger" id="deleteAccount">Delete Account</button>
+                </div>
+                <div id="locationInfo" class="mono"></div>
+                <div id="picture" class="picture-box"></div>
+            </div>
+        </div>
+        <div class="footer">
+            <a href="https://github.com/odesaur/RingMyDevice" target="_blank">Source</a> ·
+            <a href="ds.html">Privacy</a>
+        </div>
+    </div>
+</body>
+</html>
