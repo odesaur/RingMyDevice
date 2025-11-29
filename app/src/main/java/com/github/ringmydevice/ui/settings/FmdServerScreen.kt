@@ -147,7 +147,7 @@ fun FmdServerScreen(
                                 }
                                 val ok = repo.verifyAccessToken(baseUrl, trimmedToken)
                                 if (ok) {
-                                    val message = "Connection OK"
+                                    val message = "Success"
                                     statusMessage = message
                                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                     if (pushEndpoint.isNotBlank()) {
@@ -159,7 +159,7 @@ fun FmdServerScreen(
                                     val refreshed = repo.login(baseUrl, userId, storedPassword)
                                     if (!refreshed.isNullOrBlank()) {
                                         viewModel.setFmdAccessToken(refreshed)
-                                        statusMessage = "Connection OK (refreshed)"
+                                        statusMessage = "Success (refreshed)"
                                         Toast.makeText(context, statusMessage, Toast.LENGTH_LONG).show()
                                         if (pushEndpoint.isNotBlank()) {
                                             repo.registerPushEndpoint(pushEndpoint)
