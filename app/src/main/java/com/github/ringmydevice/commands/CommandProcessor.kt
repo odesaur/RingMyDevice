@@ -1,6 +1,7 @@
 package com.github.ringmydevice.commands
 
 import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
@@ -35,6 +36,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 enum class CommandSource { SMS, NOTIFICATION_REPLY, IN_APP, MESHTASTIC }
+
+private const val LOCK_MESSAGE_NOTIFICATION_ID = 2001
 
 object CommandProcessor {
     suspend fun handle(
@@ -401,10 +404,26 @@ object CommandProcessor {
                 logNotes = "lock failed - admin not active"
             )
         }
-        manager.lockNow()
         val message = args.joinToString(" ").takeIf { it.isNotBlank() }
+            ?: AppGraph.settingsRepo.getLockMessage().takeIf { it.isNotBlank() }
+
+        try {
+            manager.lockNow()
+        } catch (se: SecurityException) {
+            val msg = "Device admin missing lock permission. Open the app and re-enable device admin."
+            notifyUser(context, source, msg)
+            return CommandExecutionResult(
+                CommandId.LOCK,
+                CommandStatus.PERMISSION_MISSING,
+                feedbackMessage = msg,
+                logNotes = "lock failed - missing LOCK_DEVICE policy"
+            )
+        }
         if (!message.isNullOrBlank()) {
-            notifyUser(context, source, "Lock message: $message")
+            showLockScreenMessage(context, message)
+            if (source == CommandSource.IN_APP) {
+                notifyUser(context, source, "Lock message: $message")
+            }
         }
         val notes = if (message.isNullOrBlank()) "lock executed" else "lock executed with message: $message"
         return CommandExecutionResult(
@@ -550,4 +569,29 @@ private fun notifyUser(context: Context, source: CommandSource, message: String)
         .build()
 
     notificationManagerCompat.notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification)
+}
+
+private fun showLockScreenMessage(context: Context, message: String) {
+    val appContext = context.applicationContext
+    val channelId = "rmd_lock_message"
+    val nm = NotificationManagerCompat.from(appContext)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val sys = appContext.getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(channelId, "RMD lock messages", NotificationManager.IMPORTANCE_HIGH).apply {
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        sys?.createNotificationChannel(channel)
+    }
+    val notification = NotificationCompat.Builder(appContext, channelId)
+        .setSmallIcon(android.R.drawable.ic_lock_lock)
+        .setContentTitle("Device locked")
+        .setContentText(message)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setCategory(Notification.CATEGORY_MESSAGE)
+        .setAutoCancel(true)
+        .setTimeoutAfter(30_000)
+        .build()
+    nm.notify(LOCK_MESSAGE_NOTIFICATION_ID, notification)
 }

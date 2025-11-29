@@ -21,6 +21,10 @@ class SettingsRepository private constructor(context: Context) {
         dataStore.data.first()[SettingsViewModel.RMD_RINGTONE] ?: ""
     }
 
+    suspend fun getLockMessage(): String = withContext(Dispatchers.IO) {
+        dataStore.data.first()[SettingsViewModel.RMD_LOCK_MESSAGE] ?: ""
+    }
+
     suspend fun isRingEnabled(): Boolean = withContext(Dispatchers.IO) {
         dataStore.data.first()[SettingsViewModel.RING_ENABLED] ?: true
     }
