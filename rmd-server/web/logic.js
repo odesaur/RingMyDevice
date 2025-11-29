@@ -452,9 +452,8 @@ async function refreshPushStatus() {
 }
 
 function updatePushStatusFooter(text) {
-    const footerEl = document.getElementById("pushStatusFooter");
-    if (!footerEl) return;
-    footerEl.textContent = text || "";
+    // Footer badge removed; keep placeholder for future use.
+    return;
 }
 
 async function savePushEndpoint() {

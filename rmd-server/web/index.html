@@ -15,12 +15,16 @@
     <script src="rmdcrypto.js"></script>
 </head>
 <body class="tui">
-        <div class="panel">
-            <div class="header">
+    <div class="panel">
+        <div class="header">
+            <div>
+                <div class="eyebrow">RingMyDevice</div>
                 <div class="title">RMD Server</div>
-                <div class="version" id="version">v0.0.0</div>
             </div>
+            <div class="version pill" id="version">v0.0.0</div>
+        </div>
         <div class="intro">Self-hosted control panel for RingMyDevice. Register via the app, then log in to manage and trigger actions.</div>
+
         <form id="loginForm" class="form">
             <label for="rmdid">RMD ID</label>
             <input type="text" id="rmdid" name="rmdid" placeholder="Your RMD ID" required>
@@ -30,46 +34,67 @@
                 <input type="checkbox" id="useLongSession">
                 <label for="useLongSession">Remember me for one week</label>
             </div>
-            <button id="loginButton" type="submit" class="btn">Log in</button>
+            <button id="loginButton" type="submit" class="btn primary">Log in</button>
         </form>
+
         <div id="dataView" class="hidden">
             <div class="stack">
-                <div class="row-space">
-                    <div><span class="label">ID:</span> <span id="idView"></span></div>
-                    <div><span class="label">Push:</span> <span id="pushWarning"></span><span id="pushStatus" class="mono"></span></div>
-                </div>
-                <div id="pushPanel" class="push-panel hidden">
-                    <div class="push-row">
-                        <input type="text" id="pushEndpointInput" placeholder="Push endpoint URL" />
-                        <button type="button" class="btn" id="pushSave">Save</button>
-                        <button type="button" class="btn" id="pushRefresh">Refresh</button>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Session</div>
+                        <div class="card-subtitle">Authenticated device info</div>
                     </div>
-                    <div id="pushSaveMsg" class="mono"></div>
+                    <div class="row-space">
+                        <div><span class="label">ID:</span> <span id="idView"></span></div>
+                        <div class="pill mono" id="pushStatus">Not configured</div>
+                    </div>
+                    <div id="pushWarning" class="warning-text"></div>
                 </div>
-                <div class="grid">
-                    <button type="button" class="btn" id="locateAll">Locate all</button>
-                    <button type="button" class="btn" id="locateGps">Locate GPS</button>
-                    <button type="button" class="btn" id="locateCellular">Locate Cell</button>
-                    <button type="button" class="btn" id="locateLast">Locate Last</button>
-                    <button type="button" class="btn" id="ring">Ring</button>
-                    <button type="button" class="btn" id="lock">Lock</button>
-                    <button type="button" class="btn" id="cameraFront">Camera Front</button>
-                    <button type="button" class="btn" id="cameraBack">Camera Back</button>
-                    <button type="button" class="btn" id="showPicture">Latest Photo</button>
-                    <button type="button" class="btn danger" id="delete">Delete Device Command</button>
-                    <button type="button" class="btn" id="exportData">Export Data</button>
-                    <button type="button" class="btn danger" id="deleteAccount">Delete Account</button>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Commands</div>
+                        <div class="card-subtitle">Locate, ring, and capture</div>
+                    </div>
+                    <div class="section-title">Locate &amp; Ring</div>
+                    <div class="actions-grid">
+                        <button type="button" class="btn" id="locateAll">Locate all</button>
+                        <button type="button" class="btn" id="locateGps">Locate GPS</button>
+                        <button type="button" class="btn" id="locateCellular">Locate Cell</button>
+                        <button type="button" class="btn" id="locateLast">Locate Last</button>
+                        <button type="button" class="btn accent" id="ring">Ring</button>
+                        <button type="button" class="btn" id="lock">Lock</button>
+                    </div>
+                    <div class="section-title">Camera</div>
+                    <div class="actions-grid">
+                        <button type="button" class="btn" id="cameraFront">Camera Front</button>
+                        <button type="button" class="btn" id="cameraBack">Camera Back</button>
+                        <button type="button" class="btn" id="showPicture">Latest Photo</button>
+                        <button type="button" class="btn danger" id="delete">Delete Device Command</button>
+                    </div>
+                    <div id="locationInfo" class="mono subtle"></div>
                 </div>
-                <div id="locationInfo" class="mono"></div>
-                <div id="picturePanel" class="picture-panel hidden">
-                    <div class="picture-header">
-                        <div class="label">Photos</div>
-                        <div id="pictureStatus" class="mono"></div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Account</div>
+                        <div class="card-subtitle">Data and lifecycle</div>
+                    </div>
+                    <div class="actions-grid">
+                        <button type="button" class="btn" id="exportData">Export Data</button>
+                        <button type="button" class="btn danger" id="deleteAccount">Delete Account</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Photos</div>
+                        <div id="pictureStatus" class="mono pill subtle"></div>
                     </div>
                     <div class="picture-actions">
-                        <button type="button" class="btn" id="picturePrev">Prev</button>
-                        <button type="button" class="btn" id="pictureLatest">Latest</button>
-                        <button type="button" class="btn" id="pictureNext">Next</button>
+                        <button type="button" class="btn ghost" id="picturePrev">Prev</button>
+                        <button type="button" class="btn ghost" id="pictureLatest">Latest</button>
+                        <button type="button" class="btn ghost" id="pictureNext">Next</button>
                         <button type="button" class="btn" id="pictureDownload">Download</button>
                     </div>
                     <div id="pictureBox" class="picture-box">
@@ -79,10 +104,10 @@
                 </div>
             </div>
         </div>
+
         <div class="footer">
             <a href="https://github.com/odesaur/RingMyDevice" target="_blank">Source</a> ·
             <a href="ds.html">Privacy</a>
-            <span style="float:right" id="pushStatusFooter"></span>
         </div>
     </div>
 </body>
