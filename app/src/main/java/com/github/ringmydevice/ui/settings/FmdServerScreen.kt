@@ -150,22 +150,12 @@ fun FmdServerScreen(
                                     val message = "Success"
                                     statusMessage = message
                                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                    if (pushEndpoint.isNotBlank()) {
-                                        repo.registerPushEndpoint(pushEndpoint)
-                                    } else if (com.github.ringmydevice.receiver.PushReceiver.distributorAvailable(context)) {
-                                        com.github.ringmydevice.receiver.PushReceiver.register(context)
-                                    }
                                 } else if (rememberPassword && storedPassword.isNotBlank()) {
                                     val refreshed = repo.login(baseUrl, userId, storedPassword)
                                     if (!refreshed.isNullOrBlank()) {
                                         viewModel.setFmdAccessToken(refreshed)
                                         statusMessage = "Success (refreshed)"
                                         Toast.makeText(context, statusMessage, Toast.LENGTH_LONG).show()
-                                        if (pushEndpoint.isNotBlank()) {
-                                            repo.registerPushEndpoint(pushEndpoint)
-                                        } else if (com.github.ringmydevice.receiver.PushReceiver.distributorAvailable(context)) {
-                                            com.github.ringmydevice.receiver.PushReceiver.register(context)
-                                        }
                                     } else {
                                         val message = "Token invalid - log in again"
                                         statusMessage = message
@@ -301,8 +291,6 @@ fun FmdServerScreen(
                     viewModel.setFmdAccessToken(access)
                     if (pushEndpoint.isNotBlank()) {
                         repo.registerPushEndpointDirect(baseUrl, access, pushEndpoint)
-                    } else if (com.github.ringmydevice.receiver.PushReceiver.distributorAvailable(context)) {
-                        com.github.ringmydevice.receiver.PushReceiver.register(context)
                     }
                     statusMessage = "Connected"
                     Toast.makeText(context, "Registered as $deviceId", Toast.LENGTH_LONG).show()
@@ -698,7 +686,8 @@ private fun PushCard(
             }
             val installLabel = if (sunupInstalled) "Sunup installed" else "Install Sunup"
             Button(onClick = onInstallSunup, modifier = Modifier.fillMaxWidth(), enabled = !sunupInstalled) { Text(installLabel) }
-            Button(onClick = onRegister, modifier = Modifier.fillMaxWidth()) { Text("Register push") }
+            val registerLabel = if (pushEndpoint.isNotBlank()) "Register again" else "Register push"
+            Button(onClick = onRegister, modifier = Modifier.fillMaxWidth()) { Text(registerLabel) }
             OutlinedButton(
                 onClick = onRefreshEndpoint,
                 modifier = Modifier.fillMaxWidth(),
