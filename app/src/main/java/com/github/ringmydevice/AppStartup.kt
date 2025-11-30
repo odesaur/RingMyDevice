@@ -18,11 +18,7 @@ object AppStartup {
             // If Sunup is installed and we have an endpoint, ensure it's registered server-side.
             val repo = RmdServerRepository.getInstance()
             repo.syncStoredPushEndpoint()
-            repo.syncPushEndpointFromServer()
         }
-        // Ensure UnifiedPush registration is active if a distributor exists.
-        if (PushReceiver.distributorAvailable(context)) {
-            PushReceiver.register(context)
-        }
+        // Do not auto-register push here; leave registration to explicit user action.
     }
 }
